@@ -1,0 +1,93 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "buscadorDinamico",
+  "projectDescription": "A flexible JavaScript class for creating dynamic search components with real-time filtering, pagination, and support for local data, DOM indexing, and AJAX requests.",
+  "theme": "palm",
+  "primaryColor": "#000F59",
+  "lightColor": "#d4dce2",
+  "darkColor": "#000F59",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "installation", "quickstart"]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/local-data",
+              "guides/dom-indexing",
+              "guides/ajax-mode",
+              "guides/custom-rendering",
+              "guides/pagination",
+              "guides/caching"
+            ]
+          },
+          {
+            "group": "HTML Structure",
+            "pages": ["html-structure"]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Constructor",
+            "pages": ["api/constructor", "api/configuration"]
+          },
+          {
+            "group": "Methods",
+            "pages": [
+              "api/methods/init",
+              "api/methods/initialize-with-data",
+              "api/methods/buscar-e-imprimir",
+              "api/methods/calcular-paginacion",
+              "api/methods/filtrar-datos",
+              "api/methods/imprimir-datos",
+              "api/methods/render-pagination",
+              "api/methods/renderizar-item",
+              "api/methods/ajax",
+              "api/methods/extraer-items-data"
+            ]
+          },
+          {
+            "group": "Server",
+            "pages": ["api/server-response"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time search with 500ms debounce for performance optimization",
+    "Three data modes: local array, DOM element indexing, and AJAX requests",
+    "Built-in pagination with configurable items per page",
+    "Unified cache system with 5-minute expiration for both local and server data",
+    "Custom item rendering via configurable renderizarItem function",
+    "Auto-generated HTML structure when elements are missing",
+    "Unique CSS class generation to support multiple instances on the same page",
+    "XMLHttpRequest-based AJAX with support for POST, GET, PUT, PATCH methods"
+  ],
+  "publicApiSurface": [
+    "new search(config)",
+    "config.element",
+    "config.itemsPerPage",
+    "config.procesServer",
+    "config.data",
+    "config.renderizarItem",
+    "init()",
+    "initializeWithData()",
+    "buscarEImprimir(searchTerm)",
+    "calcularPaginacion(totalItems)",
+    "filtrarDatos(data, searchTerm)",
+    "imprimirDatos(data)",
+    "renderPagination(totalPages)",
+    "renderizarItem(element)",
+    "ajax(config)",
+    "extraerItemsData()"
+  ]
+}
