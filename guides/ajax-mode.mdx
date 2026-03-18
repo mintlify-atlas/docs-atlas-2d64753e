@@ -39,7 +39,7 @@ new search({
 | `url` | string | Endpoint URL |
 | `method` | string | HTTP method: `POST`, `GET`, `PUT`, or `PATCH` |
 | `body` | object | Parameters sent with each request |
-| `headers` | object | Optional additional request headers |
+| `header` | object | Optional additional request headers (note: singular, not `headers`) |
 
 <Warning>
 `itemsPerPage` is always injected into `body` automatically by the class — you don't need to set it manually. On `init()`, the line `this.data.body.itemsPerPage = this.itemsPerPage` overwrites any value you may have placed in the body. Always configure the number of results per page through the top-level `itemsPerPage` option, not inside `body`.
@@ -55,7 +55,11 @@ this.data.body.page = this.#pagination.currentPage;
 ## HTTP method behaviour
 
 - **POST / PUT / PATCH** — body parameters are encoded as `application/x-www-form-urlencoded` and sent in the request body.
-- **GET / DELETE** — body parameters are appended to the URL as a query string (e.g. `?page=1&searchTerm=foo&itemsPerPage=10`).
+- **GET** (or any other non-POST/PUT/PATCH method) — body parameters are appended to the URL as a query string (e.g. `?page=1&searchTerm=foo&itemsPerPage=10`).
+
+<Warning>
+  The GET path in the current source has a bug: the `else` branch references `config` instead of `resp`, which throws a `ReferenceError` at runtime. Until this is fixed upstream, use `POST` for all AJAX requests. See [ajax()](/api/methods/ajax) for details.
+</Warning>
 
 <Tabs>
   <Tab title="Constructor setup">
@@ -170,5 +174,9 @@ this.data.body.page = this.#pagination.currentPage;
     ```
 
     Note that the PHP side uses `$_POST['itemsPerPage']` directly in the `LIMIT` clause — the value is always the one injected by the class, never one you set manually in the body.
+
+    <Warning>
+      The source PHP has a minor inconsistency: `$start = ($page - 1) * 10` uses a hardcoded `10` for the offset calculation instead of `$_POST['itemsPerPage']`. In production code, replace `10` with `(int)$_POST['itemsPerPage']` to keep the offset in sync with the configured page size.
+    </Warning>
   </Tab>
 </Tabs>

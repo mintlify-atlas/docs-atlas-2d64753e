@@ -1,0 +1,39 @@
+---
+title: actualizarDatos(data)
+description: Replaces the internal data store with a new array of items.
+---
+
+`actualizarDatos()` is the only method that writes to the private `#data` field. It is called internally by `init()` (to set the initial dataset) and by `buscarEImprimir()` (to update the store after an AJAX response).
+
+<Note>
+  You rarely need to call this method directly. It is invoked automatically during initialization and on every AJAX response. It is documented here because it appears in other method descriptions and is technically accessible on any `search` instance.
+</Note>
+
+## Parameters
+
+<ParamField path="data" type="Array<Object>" required>
+  The array of items to store as the internal dataset. In local and DOM indexing modes this is the full dataset. In AJAX mode it is the single page of results returned by the server.
+</ParamField>
+
+## Method logic
+
+```javascript
+actualizarDatos(data) {
+    this.#data = data;
+}
+```
+
+The method unconditionally replaces `#data` with the provided array. No merging or diffing is performed.
+
+## When it is called
+
+| Call site | Argument passed |
+|---|---|
+| `init()` — local/DOM mode | `this.data` (config array) or `this.extraerItemsData()` (DOM-indexed array) |
+| `init()` — AJAX mode | `response.data` from the initial server request |
+| `buscarEImprimir()` — AJAX cache hit | `cachedData.data` |
+| `buscarEImprimir()` — AJAX cache miss | `response.data` from the new server request |
+
+## Returns
+
+`actualizarDatos()` has no return value.

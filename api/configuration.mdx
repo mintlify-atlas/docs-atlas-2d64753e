@@ -111,12 +111,15 @@ so custom properties are accessible anywhere inside the class (including inside
       ```
     </ParamField>
 
-    <ParamField body="headers" type="object">
-      Custom request headers to include alongside the default
-      `Content-Type: application/x-www-form-urlencoded` header.
+    <ParamField body="header" type="object">
+      Custom request headers to append to the request. In the source the property is named `header` (singular).
+
+      <Warning>
+        This property is named **`header`** (singular), not `headers`. Using `headers` will be silently ignored.
+      </Warning>
 
       ```javascript
-      headers: {
+      header: {
           "X-API-Key": "your-api-key"
       }
       ```
@@ -209,7 +212,7 @@ fields:
 {
     "data": [],        // Array of result objects for the current page
     "page": 1,         // Current page number
-    "countPage": 10    // Total number of pages
+    "countPage": 10    // Total number of matching items (not pages)
 }
 ```
 
@@ -227,7 +230,7 @@ const buscador = new search({
             page: 1,
             searchTerm: ""
         },
-        headers: {
+        header: {
             "X-API-Key": "your-api-key"
         },
         sucess: function(response, instance) {

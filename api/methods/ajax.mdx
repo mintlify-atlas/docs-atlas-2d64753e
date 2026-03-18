@@ -22,6 +22,14 @@ description: Sends an XMLHttpRequest and returns a Promise resolving with the pa
     Key-value pairs to include as request parameters. For `POST`, `PUT`, and `PATCH` requests these are encoded as `application/x-www-form-urlencoded` and sent in the request body. For `GET` requests they are serialized as a query string and appended to the URL.
   </ParamField>
 
+  <ParamField path="config.header" type="object">
+    Additional headers to append to the request (note: **singular** `header`, not `headers`). The class iterates over the key-value pairs and appends them to the `URLSearchParams` body for POST/PUT/PATCH requests.
+
+    <Warning>
+      The property name is `header` (singular). Using `headers` will be silently ignored.
+    </Warning>
+  </ParamField>
+
   <ParamField path="config.sucess" type="function">
     Callback invoked on a successful response before the Promise resolves. Receives `(response, instance)` where `response` is the parsed JSON object and `instance` is the `search` class instance.
   </ParamField>
@@ -59,9 +67,13 @@ xhr.send(formData.toString());
 
 ### GET path
 
+<Warning>
+  The GET path in the current source contains a bug: the `else` branch references a variable named `config` instead of `resp`, which will throw a `ReferenceError` at runtime when you use a non-POST/PUT/PATCH method. Until this is fixed upstream, use `POST` for all requests.
+</Warning>
+
 ```javascript
-// Body parameters are appended to the URL as a query string
-const params = new URLSearchParams(config.body);
+// Source code (contains bug: references 'config' instead of 'resp')
+const params = new URLSearchParams(config.body);   // ReferenceError: config is not defined
 const fullUrl = `${config.url}?${params.toString()}`;
 xhr.open(config.method, fullUrl, true);
 xhr.send();

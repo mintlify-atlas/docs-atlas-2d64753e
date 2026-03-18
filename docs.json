@@ -63,7 +63,8 @@
               "api/methods/render-pagination",
               "api/methods/renderizar-item",
               "api/methods/ajax",
-              "api/methods/extraer-items-data"
+              "api/methods/extraer-items-data",
+              "api/methods/actualizar-datos"
             ]
           },
           {

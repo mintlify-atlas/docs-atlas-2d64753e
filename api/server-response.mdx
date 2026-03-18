@@ -44,7 +44,7 @@ Your endpoint must return a JSON object with these three fields:
 
 ## Request parameters sent by the class
 
-On each request the class writes the following parameters into `data.body` before sending. For `POST`, `PUT`, and `PATCH` requests they are sent as a `application/x-www-form-urlencoded` body. For `GET` and `DELETE` requests they are appended to the URL as query string parameters.
+On each request the class writes the following parameters into `data.body` before sending. For `POST`, `PUT`, and `PATCH` requests they are sent as an `application/x-www-form-urlencoded` body. For `GET` (or any other non-POST/PUT/PATCH method) they are appended to the URL as query string parameters.
 
 <ParamField body="page" type="number" required>
   The current page number (integer, starting at `1`). Updated automatically as
