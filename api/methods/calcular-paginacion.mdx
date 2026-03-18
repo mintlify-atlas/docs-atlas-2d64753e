@@ -1,0 +1,75 @@
+---
+title: calcularPaginacion(totalItems)
+description: Calculates pagination state based on a count or array of items.
+---
+
+`calcularPaginacion()` updates the private `#pagination` object and returns it. It accepts either a number (a total record count from the server) or an array (the full filtered result set from local mode), making it work identically in both data strategies.
+
+## Parameters
+
+<ParamField path="totalItems" type="number | Array">
+  Either:
+  - A **number** — the total record count returned by the server in `response.countPage`.
+  - An **Array** — the full filtered result array produced by `filtrarDatos()` in local mode. The array's `length` property is used as the item count.
+</ParamField>
+
+## Return value
+
+<ResponseField name="#pagination" type="Object">
+  The updated pagination state object:
+
+  <ResponseField name="totalPages" type="number">
+    Total number of pages: `Math.ceil(itemCount / itemsPerPage)`.
+  </ResponseField>
+
+  <ResponseField name="currentPage" type="number">
+    The current page number. Preserved from the previous call — only reset to `1` externally by the input event handler in `initializeWithData()`.
+  </ResponseField>
+
+  <ResponseField name="startIndex" type="number">
+    Zero-based start index for slicing the data array: `(currentPage - 1) * itemsPerPage`.
+  </ResponseField>
+
+  <ResponseField name="endIndex" type="number">
+    Exclusive end index for slicing: `startIndex + itemsPerPage`.
+  </ResponseField>
+</ResponseField>
+
+## Method logic
+
+```javascript
+calcularPaginacion(totalItems) {
+    const itemCount = typeof totalItems === 'object'
+        ? totalItems.length
+        : parseInt(totalItems);
+
+    this.#pagination.totalPages  = Math.ceil(itemCount / this.itemsPerPage);
+    this.#pagination.currentPage = this.#pagination.currentPage ?? 1;
+    this.#pagination.startIndex  = (this.#pagination.currentPage - 1) * this.itemsPerPage;
+    this.#pagination.endIndex    = this.#pagination.startIndex + this.itemsPerPage;
+
+    return this.#pagination;
+}
+```
+
+## How `currentPage` is managed
+
+`calcularPaginacion()` never resets `currentPage` — it only reads whatever value is already stored. This means:
+
+- Navigating to page 3 and triggering a cache-hit re-render keeps you on page 3.
+- Only the `input` event handler (in `initializeWithData()`) explicitly sets `currentPage = 1` before calling `buscarEImprimir`, ensuring a new search term always starts at page 1.
+
+## Example
+
+```javascript
+// 47 items, 10 per page, currently on page 2
+// calcularPaginacion is called with the filtered array of 47 elements
+const pagination = instance.calcularPaginacion(filteredArray); // length: 47
+// Returns:
+// {
+//   totalPages:  5,
+//   currentPage: 2,
+//   startIndex:  10,
+//   endIndex:    20
+// }
+```

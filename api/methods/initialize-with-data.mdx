@@ -1,0 +1,58 @@
+---
+title: initializeWithData()
+description: Sets up the search input event listener and performs the initial empty-string search.
+---
+
+`initializeWithData()` is the final step in the initialization sequence. It validates that data is present, wires up the debounced input listener, and triggers an initial render by calling `buscarEImprimir("")` with an empty search term so all items are shown on load.
+
+<Warning>
+  If `#data` is empty or `undefined` when this method runs, it throws `Error('El arreglo de datos no puede estar vacío')`. In server mode this would indicate the initial `ajax()` call returned no records. In local mode it means neither a `data` array nor DOM `.items` elements were found.
+</Warning>
+
+## Method logic
+
+```javascript
+initializeWithData() {
+    if (!this.#data || this.#data.length === 0) {
+        throw new Error('El arreglo de datos no puede estar vacío');
+    }
+
+    let timeOut;
+
+    this.inputSearch.addEventListener("input", (e) => {
+        const searchTerm = e.target.value.trim().toLowerCase();
+
+        clearTimeout(timeOut);
+
+        timeOut = setTimeout(() => {
+            this.#pagination.currentPage = 1;
+
+            this.buscarEImprimir(searchTerm);
+        }, 500);
+    });
+
+    this.buscarEImprimir("");
+}
+```
+
+## Debounce behavior
+
+Every keystroke clears the previous timer and starts a new 500 ms countdown. `buscarEImprimir` is only called once the user stops typing for half a second. This prevents a search request from firing on every individual character.
+
+```
+User types: "f" → "fr" → "fra" → "fran"
+                         ↑ each keystroke clears the previous timer
+After 500 ms of silence → buscarEImprimir("fran") is called
+```
+
+## Pagination reset
+
+Before each search triggered by the input event, `currentPage` is reset to `1`. This ensures that when you type a new term you always land on the first page of results, regardless of which page you were on previously.
+
+## Initial render
+
+After the listener is registered, `buscarEImprimir("")` is called unconditionally. An empty string matches every item, so all records are rendered immediately on load without the user having to type anything.
+
+## Returns
+
+`initializeWithData()` has no return value.

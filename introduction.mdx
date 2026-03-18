@@ -1,0 +1,67 @@
+---
+title: Introduction
+description: A flexible JavaScript class for creating dynamic search components with real-time filtering, pagination, and support for local data, DOM indexing, and AJAX requests.
+---
+
+# buscadorDinamico
+
+**buscadorDinamico** is a lightweight, dependency-free JavaScript class (`search`) that adds powerful dynamic search capabilities to any web page. Include a single script tag and you get real-time filtering, automatic pagination, and a built-in cache — all with zero framework requirements.
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Add the script to your project and get started in minutes
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build your first dynamic search in under 5 minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/constructor">
+    Explore the full constructor options and method signatures
+  </Card>
+  <Card title="Guides" icon="book-open" href="/guides/local-data">
+    Dive into local data, DOM indexing, AJAX, and custom rendering
+  </Card>
+</CardGroup>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Three data modes" icon="database">
+    Use a local JavaScript array, read existing DOM elements, or fetch results from a server via AJAX — all with the same API.
+  </Card>
+  <Card title="Real-time search" icon="magnifying-glass">
+    Input events are debounced at 500 ms, so the DOM is updated only after the user stops typing.
+  </Card>
+  <Card title="Built-in pagination" icon="list-ol">
+    Configure `itemsPerPage` and the library automatically calculates page count, slice indices, and renders navigation buttons.
+  </Card>
+  <Card title="Unified cache" icon="bolt">
+    Both local and server results are cached for 5 minutes using a `Map`-based store, keyed by search term and page number.
+  </Card>
+  <Card title="Custom rendering" icon="paintbrush">
+    Override `renderizarItem` with your own function to control exactly how each search result is displayed.
+  </Card>
+  <Card title="Auto-generated HTML" icon="wand-magic-sparkles">
+    Missing input, results body, or pagination footer? The class creates them automatically so your markup stays minimal.
+  </Card>
+</CardGroup>
+
+## How it works
+
+The `search` class reads from a CSS selector you provide (`element`), finds or creates three child zones — a search input header, a scrollable results body, and a pagination footer — then wires up all event listeners and renders the initial result set.
+
+```
+┌─────────────────────────────┐
+│  .app-search  (container)   │
+│  ┌───────────────────────┐  │
+│  │ <search .input-search>│  │  ← label + text input
+│  └───────────────────────┘  │
+│  ┌───────────────────────┐  │
+│  │ <main .items-search>  │  │  ← rendered result items
+│  └───────────────────────┘  │
+│  ┌───────────────────────┐  │
+│  │ <footer .index-search>│  │  ← pagination buttons
+│  └───────────────────────┘  │
+└─────────────────────────────┘
+```
+
+See [HTML Structure](/html-structure) for the full required markup and CSS classes.

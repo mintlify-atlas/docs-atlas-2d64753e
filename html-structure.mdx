@@ -1,0 +1,212 @@
+---
+title: HTML structure
+description: The required HTML markup and CSS class conventions for buscadorDinamico.
+---
+
+## Required container
+
+The only element you must provide is an outer `<div>` that acts as the search widget's mount point:
+
+```html
+<div class="app-search"></div>
+```
+
+You tell the library which element to use via the `element` config option, which accepts any valid CSS selector — a class, an ID, or any other selector that `document.querySelector` understands:
+
+```javascript
+new search({ element: ".app-search" });  // class selector
+new search({ element: "#my-search" });   // ID selector
+```
+
+<Note>
+  Only the container element is required. Every child element is created automatically when the class initialises.
+</Note>
+
+## Auto-generated children
+
+When you call `new search(config)`, the `configurarElementos()` method inspects the container and creates any missing child elements. The full generated structure looks like this:
+
+```html
+<div class="app-search">
+  <!-- Search header: label + text input -->
+  <search class="input-search input-search-app-search">
+    <label for="filter-search-app-search">Filtrar por Busqueda</label>
+    <input
+      type="text"
+      name="filterSearch-app-search"
+      id="filter-search-app-search"
+      class="form-control input-lg"
+      placeholder="Ingrese palabra clave..."
+    />
+  </search>
+
+  <!-- Scrollable results body -->
+  <main class="items-search items-search-app-search scroll-personalize"></main>
+
+  <!-- Pagination footer -->
+  <footer class="index-search index-search-app-search">
+    <ul class="pagination pagination-app-search"></ul>
+  </footer>
+</div>
+```
+
+The three child elements and their roles are:
+
+1. `<search class="input-search">` — fixed-height header (80 px) that holds the label and text input.
+2. `<main class="items-search scroll-personalize">` — scrollable results area that fills the remaining height.
+3. `<footer class="index-search">` — fixed-height pagination bar (30 px) containing `<ul class="pagination">`.
+
+<Tip>
+  If any of these elements already exist inside the container when the class initialises, they are reused as-is rather than replaced. Only missing elements are created.
+</Tip>
+
+## Pre-rendering your own HTML
+
+Instead of letting the library generate the structure, you can write it yourself before the script runs. This is useful for server-side rendering or when you want to embed existing data directly in the markup.
+
+### Full pre-rendered skeleton
+
+```html
+<div class="app-search">
+  <search class="input-search">
+    <label for="filter-search">Filtrar por Busqueda</label>
+    <input
+      type="text"
+      name="filterSearch"
+      id="filter-search"
+      class="form-control input-lg"
+      placeholder="Ingrese palabra clave..."
+    />
+  </search>
+  <main class="items-search scroll-personalize">
+    <!-- result rows go here -->
+  </main>
+  <footer class="index-search">
+    <ul class="pagination"></ul>
+  </footer>
+</div>
+```
+
+### DOM indexing with `data-*` attributes
+
+When you omit the `data` option and there are no pre-loaded results from a server, the library calls `extraerItemsData()` to read the dataset from every `<section class="items">` element inside `.items-search`. Each `data-*` attribute on the section becomes a property on the data object:
+
+```html
+<main class="items-search scroll-personalize">
+  <section class="items"
+    data-country="VE"
+    data-name="Venezuela"
+    data-descripcion="El pais mas rico en petroleo.">
+  </section>
+  <section class="items"
+    data-country="CO"
+    data-name="Colombia"
+    data-descripcion="Un pais con una gran riqueza cultural.">
+  </section>
+</main>
+```
+
+The library extracts `{ country, name, descripcion }` from each section and uses those objects as its internal dataset.
+
+<Note>
+  Attribute names become camelCase property keys via the browser's native `dataset` API. For example, `data-first-name` becomes `element.firstName`.
+</Note>
+
+## Unique class names for multiple instances
+
+When you place more than one search widget on the same page, CSS rules and DOM IDs must not collide. The private `#getUniqueClassName(baseClass)` method handles this by appending the container selector (with the leading `.` or `#` stripped) to every generated class name:
+
+```
+pattern: ${baseClass}-${parentSelectorWithoutDot}
+```
+
+For a container with class `.app-search`, the generated names are:
+
+| Base class | Unique class |
+|---|---|
+| `input-search` | `input-search-app-search` |
+| `items-search` | `items-search-app-search` |
+| `index-search` | `index-search-app-search` |
+| `pagination` | `pagination-app-search` |
+
+For a second container with class `.app-search2`, the same bases produce `input-search-app-search2`, `items-search-app-search2`, and so on.
+
+The following example shows two independent instances on the same page:
+
+```html
+<!-- First instance -->
+<div class="app-search"></div>
+
+<!-- Second instance -->
+<div class="app-search app-search2"></div>
+
+<script src="./src/js/app.js"></script>
+<script>
+  const instance1 = new search({
+    element: ".app-search",
+    data: localData
+  });
+
+  const instance2 = new search({
+    element: ".app-search2",
+    data: otherData
+  });
+</script>
+```
+
+<Warning>
+  When you use two classes on the same element (e.g. `class="app-search app-search2"`), pass the **more specific** selector as `element` so `#getUniqueClassName` produces a unique suffix. In the example above, `instance2` uses `.app-search2`.
+</Warning>
+
+## CSS classes reference
+
+| Class | Element | Purpose |
+|---|---|---|
+| `.app-search` | container `<div>` | Flex column layout, full width, rounded corners (5 px), padding |
+| `.input-search` | `<search>` | Fixed-height search header — min/max 80 px |
+| `.items-search` | `<main>` | Scrollable results area; height fills space between header and footer |
+| `.scroll-personalize` | `<main>` | Custom scrollbar styling (thin track, rounded thumb) via `scrollbar-color` and `::-webkit-scrollbar` |
+| `.index-search` | `<footer>` | Fixed-height pagination bar — min/max 30 px; right-aligned flex row |
+| `.items` | `<section>` | Individual result row inside `.items-search`; flex row, semi-transparent background |
+| `.page-selected` | `<li>` | Active pagination button — non-clickable, reduced opacity, no shadow |
+| `.page-disabled` | `<li>` | Disabled pagination button — `pointer-events: none`, no background, no shadow |
+
+## Minimal working example
+
+The snippet below is a self-contained HTML page. Drop in your own data array and you have a working search widget with no server required.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>buscadorDinamico — minimal example</title>
+  <link rel="stylesheet" href="./src/css/app.css" />
+</head>
+<body>
+
+  <!-- The only required markup: a single container div -->
+  <div class="app-search"></div>
+
+  <script src="./src/js/app.js"></script>
+  <script>
+    new search({
+      element: ".app-search",
+      itemsPerPage: 5,
+      data: [
+        { name: "Apple",  category: "Fruit",     origin: "Central Asia" },
+        { name: "Carrot", category: "Vegetable", origin: "Persia" },
+        { name: "Mango",  category: "Fruit",     origin: "South Asia" },
+        { name: "Onion",  category: "Vegetable", origin: "Central Asia" },
+        { name: "Papaya", category: "Fruit",     origin: "Mexico" },
+        { name: "Lemon",  category: "Fruit",     origin: "Northeast India" }
+      ]
+    });
+  </script>
+
+</body>
+</html>
+```
+
+The library generates the `<search>`, `<main>`, and `<footer>` elements at runtime, renders the data into paginated rows, and wires up the search input — all from the single `<div class="app-search">` container.

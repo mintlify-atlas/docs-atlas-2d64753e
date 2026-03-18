@@ -1,0 +1,118 @@
+---
+title: Installation
+description: Add buscadorDinamico to your project with a single script tag.
+---
+
+buscadorDinamico is a dependency-free JavaScript class. You include one script file and one stylesheet — no build tools or package manager required.
+
+<Steps>
+  <Step title="Include the script">
+    Add the script tag at the bottom of your `<body>`, before the closing tag:
+
+    ```html
+    <script src="path/to/search.js"></script>
+    ```
+
+    Replace `path/to/search.js` with the actual path to `app.js` (or your bundled output) in your project.
+  </Step>
+
+  <Step title="Include the stylesheet">
+    Link `app.css` in the `<head>` of your page:
+
+    ```html
+    <link rel="stylesheet" href="path/to/app.css">
+    ```
+
+    `app.css` defines the four core layout classes that buscadorDinamico relies on:
+
+    | Class | Element | Purpose |
+    |---|---|---|
+    | `.app-search` | Wrapper `<div>` | Outer container; flex column, full width |
+    | `.input-search` | `<search>` | Fixed-height header area for the text input (80 px) |
+    | `.items-search` | `<main>` | Scrollable results list with custom scrollbar styling |
+    | `.index-search` | `<footer>` | Fixed-height footer (30 px) that holds the pagination `<ul>` |
+
+    <Note>
+      Bootstrap 5 is used in the demo (`index.html`) to style the text input with the `form-control` class. Bootstrap is **not** required for core functionality — the search, filtering, and pagination all work without it. If you choose not to use Bootstrap, style the generated `<input>` element yourself.
+    </Note>
+  </Step>
+
+  <Step title="Add the container markup">
+    Place the container element where you want the search component to appear. The minimum required markup is a single wrapper `<div>`:
+
+    ```html
+    <div class="app-search">
+      <!-- buscadorDinamico builds the input, results list,
+           and pagination footer automatically -->
+    </div>
+    ```
+
+    You can optionally pre-render the child elements yourself if you want to use **DOM Indexing** mode (where the library reads existing `<section class="items">` nodes as its data source). The full pre-rendered structure looks like this:
+
+    ```html
+    <div class="app-search">
+      <search class="input-search">
+        <label for="filter-search">Filtrar por Busqueda</label>
+        <input
+          type="text"
+          name="filterSearch"
+          id="filter-search"
+          class="form-control input-lg"
+          placeholder="Ingrese palabra clave..."
+        >
+      </search>
+
+      <main class="items-search scroll-personalize">
+        <section class="items" data-name="Venezuela" data-descripcion="...">
+        </section>
+        <!-- more .items sections -->
+      </main>
+
+      <footer class="index-search">
+        <ul class="pagination"></ul>
+      </footer>
+    </div>
+    ```
+
+    Any child elements you omit are created automatically by the library when you call `new search(...)`. You only need to include them manually when using DOM Indexing mode.
+  </Step>
+
+  <Step title="Verify the setup">
+    Your minimal page with everything wired together should look like this:
+
+    ```html
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>My Search Page</title>
+
+      <!-- Optional: Bootstrap 5 for input styling -->
+      <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+
+      <!-- Required: buscadorDinamico styles -->
+      <link rel="stylesheet" href="src/css/app.css">
+    </head>
+    <body>
+
+      <div class="app-search"></div>
+
+      <!-- Optional: Bootstrap JS -->
+      <script src="node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+
+      <!-- Required: buscadorDinamico script -->
+      <script src="src/js/app.js"></script>
+
+      <script>
+        const searcher = new search({
+          element: ".app-search",
+          itemsPerPage: 10,
+          data: [{ name: "Example", descripcion: "A sample item" }]
+        });
+      </script>
+    </body>
+    </html>
+    ```
+  </Step>
+</Steps>

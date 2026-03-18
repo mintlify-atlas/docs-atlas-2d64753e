@@ -1,0 +1,100 @@
+---
+title: Local data mode
+description: Use a JavaScript array as the data source for your search component.
+---
+
+Local data mode is the right choice when your entire dataset fits comfortably in memory and you don't need a server to filter results. All filtering happens in the browser, so there's no network latency after the initial page load.
+
+## When to use local data
+
+- Your dataset has a few hundred items or fewer
+- You want zero network requests after the page loads
+- You're building a prototype or a static site with no back-end
+- All records are already available in the JavaScript bundle or fetched once at startup
+
+## Data shape
+
+Pass an array of plain objects as the `data` option. Every key in each object becomes a searchable field — you choose the property names.
+
+```javascript
+const products = [
+  { name: "Laptop Pro", descripcion: "High-performance laptop with 16 GB RAM" },
+  { name: "Wireless Mouse", descripcion: "Ergonomic mouse with long battery life" },
+];
+```
+
+Any primitive value (`string`, `number`, `boolean`) stored in a property is matched against the search term. There is no schema to declare — just pass the objects.
+
+## Constructor
+
+```javascript
+new search({
+  element: ".app-search",   // CSS selector for the container element
+  itemsPerPage: 10,          // results per page (default: 10)
+  data: [ /* array of objects */ ]
+});
+```
+
+## How filtering works
+
+When the user types in the search box, `filtrarDatos` is called with the full dataset and the lowercased, trimmed search term:
+
+```javascript
+filtrarDatos(data, searchTerm) {
+    return data.filter((element) => {
+        const values = Object.values(element);
+        return values.some((value) =>
+            value.toString().toLowerCase().includes(searchTerm)
+        );
+    });
+}
+```
+
+Every value in each object is converted to a string and checked with `includes`. A record matches if **any** of its fields contains the search term. You don't configure which fields to search — all of them are searched automatically.
+
+<Note>
+Because filtering uses `includes`, a search for `"pro"` matches `"Laptop Pro"`, `"Proton"`, and `"Improvement"`. The match is case-insensitive but not accent-insensitive.
+</Note>
+
+## Complete example
+
+<Steps>
+  <Step title="Add a container element to your HTML">
+    ```html
+    <div class="app-search"></div>
+
+    <script src="path/to/search.js"></script>
+    ```
+
+    The class creates the search input, results list, and pagination footer inside this container automatically.
+  </Step>
+
+  <Step title="Define your data array">
+    ```javascript
+    const countries = [
+      { name: "Venezuela", descripcion: "El pais mas rico en petroleo." },
+      { name: "Colombia",  descripcion: "Un pais con una gran riqueza cultural y una gran variedad de paisajes naturales." },
+      { name: "Brazil",    descripcion: "El pais mas grande de suramerica, con una gran diversidad cultural y natural." },
+      { name: "Argentina", descripcion: "Un pais con una gran pasion por el fubol y una gran riqueza cultural." },
+      { name: "Chile",     descripcion: "Un pais con una gran variedad de paisajes naturales." },
+      { name: "Peru",      descripcion: "Un pais con una gran riqueza cultural y una gran variedad de paisajes naturales." },
+    ];
+    ```
+  </Step>
+
+  <Step title="Instantiate the search component">
+    ```javascript
+    const buscador = new search({
+      element: ".app-search",
+      itemsPerPage: 5,
+      data: countries
+    });
+    ```
+
+    The component renders immediately. Typing in the search box filters results in real time with a 500 ms debounce.
+  </Step>
+</Steps>
+
+<Note>
+All fields of each object are searched automatically. If you add a `population` or `capital` key to your objects later, those fields become searchable without any configuration change.
+</Note>

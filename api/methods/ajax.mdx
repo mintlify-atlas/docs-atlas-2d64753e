@@ -1,0 +1,121 @@
+---
+title: ajax(config)
+description: Sends an XMLHttpRequest and returns a Promise resolving with the parsed JSON response.
+---
+
+`ajax()` is the HTTP transport layer for `buscadorDinamico`. It wraps `XMLHttpRequest` in a Promise and handles both form-encoded POST/PUT/PATCH requests and query-string GET requests.
+
+## Parameters
+
+<ParamField path="config" type="Object" required>
+  The request configuration object. This is the same object you pass as `data` in the constructor config.
+
+  <ParamField path="config.url" type="string" required>
+    The URL to send the request to.
+  </ParamField>
+
+  <ParamField path="config.method" type="string">
+    The HTTP method: `"POST"`, `"GET"`, `"PUT"`, or `"PATCH"`. Determines whether `body` is sent as a request body or appended to the URL as a query string.
+  </ParamField>
+
+  <ParamField path="config.body" type="object">
+    Key-value pairs to include as request parameters. For `POST`, `PUT`, and `PATCH` requests these are encoded as `application/x-www-form-urlencoded` and sent in the request body. For `GET` requests they are serialized as a query string and appended to the URL.
+  </ParamField>
+
+  <ParamField path="config.sucess" type="function">
+    Callback invoked on a successful response before the Promise resolves. Receives `(response, instance)` where `response` is the parsed JSON object and `instance` is the `search` class instance.
+  </ParamField>
+
+  <ParamField path="config.error" type="function">
+    Callback invoked when the request fails or the response is a non-2xx status. Receives a message string describing the error.
+  </ParamField>
+</ParamField>
+
+<Warning>
+  The success callback key is spelled **`sucess`** (one `c`), not `success`. This is a known quirk in the source. Using `success` will silently do nothing — the callback will never be called.
+</Warning>
+
+## Return value
+
+<ResponseField name="return" type="Promise<Object>">
+  A Promise that resolves with the parsed JSON response object on success, or rejects with an `Error` on failure.
+</ResponseField>
+
+## Method logic
+
+### POST / PUT / PATCH path
+
+```javascript
+// Body parameters are encoded as application/x-www-form-urlencoded
+const formData = new URLSearchParams();
+Object.entries(resp.body).forEach(([key, value]) => {
+    formData.append(key, value);
+});
+
+xhr.open(resp.method, resp.url, true);
+xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+xhr.send(formData.toString());
+```
+
+### GET path
+
+```javascript
+// Body parameters are appended to the URL as a query string
+const params = new URLSearchParams(config.body);
+const fullUrl = `${config.url}?${params.toString()}`;
+xhr.open(config.method, fullUrl, true);
+xhr.send();
+```
+
+### Response handling
+
+```javascript
+xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+            const response = JSON.parse(xhr.responseText);
+            sucess(response, this);  // note: single 'c'
+            resolve(response);
+        } catch (error) {
+            reject(new Error('Error al parsear la respuesta JSON'));
+        }
+    } else {
+        reject(new Error(`Error HTTP: ${xhr.status}`));
+    }
+};
+
+xhr.onerror = () => {
+    reject(new Error('Error en la petición AJAX'));
+};
+```
+
+## Error conditions
+
+The returned Promise rejects in three situations:
+
+- **Non-2xx HTTP status** — the server returned an error code (e.g. 404, 500).
+- **JSON parse failure** — the response body is not valid JSON.
+- **Network error** — the request could not be sent or no response was received.
+
+## Usage example
+
+```javascript
+let instance = new search({
+    element: ".app-search",
+    procesServer: true,
+    data: {
+        url: "./src/php/responseAjax.php",
+        method: "POST",
+        body: {
+            page: 1,
+            searchTerm: ""
+        },
+        sucess: function(resp, instance) {  // note: single 'c'
+            console.log("Loaded", resp);
+        },
+        error: function(message) {
+            console.error("Request failed:", message);
+        }
+    }
+});
+```

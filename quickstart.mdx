@@ -1,80 +1,230 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Build your first dynamic search component in under 5 minutes.
 ---
 
-## Get started in three steps
+This guide walks you through creating a fully functional search component using the **local data** mode — the simplest way to get started. You pass a JavaScript array directly to the constructor and buscadorDinamico handles rendering, filtering, and pagination.
 
-Get your documentation site running locally and make your first customization.
+## Build your first search component
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Create the HTML container">
+    Add a single wrapper `<div>` with the `.app-search` class anywhere in your page body:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```html
+    <div class="app-search"></div>
+    ```
 
-### Step 2: Deploy your changes
+    You do not need to add any child elements — the library generates the input field, results list, and pagination footer automatically.
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+  <Step title="Include the script and stylesheet">
+    In your `<head>`, link the stylesheet:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    ```html
+    <link rel="stylesheet" href="src/css/app.css">
+    ```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    At the bottom of `<body>`, include the script:
 
-### Step 3: Go live
+    ```html
+    <script src="src/js/app.js"></script>
+    ```
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Initialize the search class">
+    After the script tag, instantiate the `search` class with your data:
 
-## Next steps
+    ```javascript
+    const mySearch = new search({
+      element: ".app-search",
+      itemsPerPage: 5,
+      data: [
+        { name: "Venezuela",  descripcion: "The richest country in oil reserves." },
+        { name: "Colombia",   descripcion: "Rich in cultural heritage and natural landscapes." },
+        { name: "Brazil",     descripcion: "The largest country in South America." },
+        { name: "Argentina",  descripcion: "Known for its passion for football and culture." },
+        { name: "Chile",      descripcion: "A country with a wide variety of natural landscapes." },
+        { name: "Peru",       descripcion: "Rich in cultural heritage and natural diversity." },
+        { name: "Ecuador",    descripcion: "Natural variety and rich cultural traditions." },
+        { name: "Uruguay",    descripcion: "Known for football culture and quality of life." }
+      ],
+      renderizarItem: function(element) {
+        return `
+          <div class="info-item">
+            <h5>${element.name}</h5>
+            <p>${element.descripcion}</p>
+          </div>
+        `;
+      }
+    });
+    ```
 
-Now that you have your docs running, explore these key features:
+    The constructor signature in full:
 
-<CardGroup cols={2}>
+    ```javascript
+    new search({
+      element,        // {string}   CSS selector for the wrapper element
+      itemsPerPage,   // {number}   Results per page (default: 10)
+      data,           // {Array}    Local data array — objects with any shape
+      renderizarItem  // {Function} Receives one item object, returns an HTML string
+    })
+    ```
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+    <Tip>
+      The search input uses a **500 ms debounce** — filtering only runs after the user pauses typing, which keeps the DOM updates smooth. Search results are also **cached for 5 minutes**: if you type the same term again, buscadorDinamico returns the stored result instantly without re-filtering the data. The cache key includes the search term, the current page number, and the data source type.
+    </Tip>
+  </Step>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+  <Step title="See what gets rendered">
+    After `new search(...)` runs, the library injects three child elements into your `.app-search` container:
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+    - **Input area** (`.input-search`) — a `<search>` element containing a `<label>` and an `<input type="text">` with the placeholder `Ingrese palabra clave...`.
+    - **Results list** (`.items-search`) — a scrollable `<main>` element. Each matched result becomes a `<section class="items">` whose inner HTML is produced by your `renderizarItem` function.
+    - **Pagination footer** (`.index-search`) — a `<footer>` containing a `<ul class="pagination">`. Pagination buttons appear for **first**, **previous**, **current**, **next**, and **last** pages. The current page button is highlighted with the `.page-selected` class.
+  </Step>
+</Steps>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+## Complete copy-pasteable example
 
-</CardGroup>
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>buscadorDinamico — Quickstart</title>
+  <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="src/css/app.css">
+</head>
+<body>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+  <div class="app-search"></div>
+
+  <script src="src/js/app.js"></script>
+  <script>
+    const mySearch = new search({
+      element: ".app-search",
+      itemsPerPage: 5,
+      data: [
+        { name: "Venezuela",  descripcion: "The richest country in oil reserves." },
+        { name: "Colombia",   descripcion: "Rich in cultural heritage and natural landscapes." },
+        { name: "Brazil",     descripcion: "The largest country in South America." },
+        { name: "Argentina",  descripcion: "Known for its passion for football and culture." },
+        { name: "Chile",      descripcion: "A country with a wide variety of natural landscapes." },
+        { name: "Peru",       descripcion: "Rich in cultural heritage and natural diversity." },
+        { name: "Ecuador",    descripcion: "Natural variety and rich cultural traditions." },
+        { name: "Uruguay",    descripcion: "Known for football culture and quality of life." }
+      ],
+      renderizarItem: function(element) {
+        return `
+          <div class="info-item">
+            <h5>${element.name}</h5>
+            <p>${element.descripcion}</p>
+          </div>
+        `;
+      }
+    });
+  </script>
+
+</body>
+</html>
+```
+
+## Choose your data mode
+
+buscadorDinamico supports three ways to provide data. Swap the constructor configuration to switch modes.
+
+<Tabs>
+  <Tab title="Local data">
+    Pass a JavaScript array to `data`. The library filters it client-side on every keystroke (debounced) and paginates the results.
+
+    ```javascript
+    const mySearch = new search({
+      element: ".app-search",
+      itemsPerPage: 10,
+      data: [
+        { name: "Item 1", descripcion: "Description 1" },
+        { name: "Item 2", descripcion: "Description 2" }
+      ],
+      renderizarItem: function(element) {
+        return `<p><strong>${element.name}</strong> — ${element.descripcion}</p>`;
+      }
+    });
+    ```
+
+    Filtering checks every property value of each object, so items match if the search term appears anywhere in any field.
+
+    For a full walkthrough, see the [Local Data guide](/guides/local-data).
+  </Tab>
+
+  <Tab title="DOM indexing">
+    Omit `data` entirely. The library reads the `data-*` attributes from existing `<section class="items">` elements already in the DOM.
+
+    ```html
+    <div class="app-search">
+      <main class="items-search scroll-personalize">
+        <section class="items"
+          data-name="Venezuela"
+          data-descripcion="The richest country in oil reserves.">
+        </section>
+        <section class="items"
+          data-name="Colombia"
+          data-descripcion="Rich in cultural heritage.">
+        </section>
+      </main>
+    </div>
+    ```
+
+    ```javascript
+    const mySearch = new search({
+      element: ".app-search",
+      itemsPerPage: 10,
+      renderizarItem: function(element) {
+        return `<p><strong>${element.name}</strong> — ${element.descripcion}</p>`;
+      }
+    });
+    ```
+
+    Each `data-*` attribute becomes a property on the item object, so `data-name` is available as `element.name` inside `renderizarItem`.
+
+    For a full walkthrough, see the [DOM Indexing guide](/guides/dom-indexing).
+  </Tab>
+
+  <Tab title="AJAX">
+    Set `procesServer: true` and pass an object to `data` describing the request. The library fetches results from your server on initialization and on every search term or page change.
+
+    ```javascript
+    const mySearch = new search({
+      element: ".app-search",
+      procesServer: true,
+      itemsPerPage: 10,
+      data: {
+        url: "./api/search.php",
+        method: "POST",
+        body: {
+          page: 1,
+          searchTerm: ""
+        }
+      },
+      renderizarItem: function(element) {
+        return `<p><strong>${element.name}</strong> — ${element.descripcion}</p>`;
+      }
+    });
+    ```
+
+    Your server must return JSON in this shape:
+
+    ```json
+    {
+      "data": [],
+      "page": 1,
+      "countPage": 10
+    }
+    ```
+
+    The `itemsPerPage` value is automatically appended to the request body — any `itemsPerPage` key you set in `body` is overwritten by the class instance value.
+
+    For a full walkthrough, see the [AJAX guide](/guides/ajax-mode).
+  </Tab>
+</Tabs>

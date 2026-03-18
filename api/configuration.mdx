@@ -1,0 +1,249 @@
+---
+title: Configuration reference
+description: Complete reference for all constructor options.
+---
+
+All options are passed as a single object to `new search(config)`. Every key
+you include is also merged onto the instance via `Object.assign(this, config)`,
+so custom properties are accessible anywhere inside the class (including inside
+`renderizarItem`).
+
+## Options
+
+<ParamField body="element" type="string" required>
+  CSS selector for the parent container element. The constructor calls
+  `document.querySelector(element)` to find this element and stores the result
+  as `this.cajaPadre`. All DOM manipulation happens inside this element.
+
+  ```javascript
+  element: ".app-search"
+  ```
+</ParamField>
+
+<ParamField body="itemsPerPage" type="number" default="10">
+  Maximum number of results displayed per page. Used to calculate total pages
+  and to slice both local filtered arrays and server responses.
+
+  In AJAX mode, `itemsPerPage` is written into `data.body.itemsPerPage` before
+  every request, so the server always receives the authoritative value
+  regardless of what you set in `body` manually.
+
+  ```javascript
+  itemsPerPage: 25
+  ```
+</ParamField>
+
+<ParamField body="procesServer" type="boolean" default="false">
+  Enables AJAX mode when set to `true`. In AJAX mode:
+
+  - The initial data load and all subsequent searches are performed via XHR.
+  - `data` must be an AJAX config object (see below) rather than an array.
+  - Filtering and pagination are delegated to the server; the class only renders
+    results and manages pagination controls.
+
+  ```javascript
+  procesServer: true
+  ```
+</ParamField>
+
+<ParamField body="data" type="Array | Object">
+  The data source. Shape depends on `procesServer`:
+
+  **Local mode** (`procesServer: false` or omitted)
+
+  Pass any `Array` of plain objects. The class searches all values of each
+  object as strings — no schema is required.
+
+  ```javascript
+  data: [
+      { name: "Item 1", descripcion: "Descripción 1" },
+      { name: "Item 2", descripcion: "Descripción 2" }
+  ]
+  ```
+
+  If `data` is omitted entirely in local mode, the class calls
+  `extraerItemsData()` to read `data-*` attributes from existing `.items`
+  elements inside the container.
+
+  ---
+
+  **AJAX mode** (`procesServer: true`)
+
+  Pass a configuration object for the XHR request:
+
+  <Expandable title="AJAX data object properties">
+    <ParamField body="url" type="string" required>
+      Full URL of the endpoint to call.
+
+      ```javascript
+      url: "./api/search.php"
+      ```
+    </ParamField>
+
+    <ParamField body="method" type="string">
+      HTTP method: `"POST"`, `"GET"`, `"PUT"`, or `"PATCH"`.
+
+      - `POST`, `PUT`, and `PATCH` send parameters as an
+        `application/x-www-form-urlencoded` body.
+      - `GET` (and any other method) appends parameters as a query string:
+        `url?key=value&key2=value2`.
+
+      ```javascript
+      method: "POST"
+      ```
+    </ParamField>
+
+    <ParamField body="body" type="object">
+      Parameters to include in every request. The class automatically adds or
+      overwrites the following keys before each call:
+
+      - `itemsPerPage` — always set from `this.itemsPerPage`
+      - `searchTerm` — the current search input value
+      - `page` — the current page number
+
+      Any additional keys you provide here are passed through unchanged.
+
+      ```javascript
+      body: {
+          page: 1,
+          searchTerm: ""
+      }
+      ```
+    </ParamField>
+
+    <ParamField body="headers" type="object">
+      Custom request headers to include alongside the default
+      `Content-Type: application/x-www-form-urlencoded` header.
+
+      ```javascript
+      headers: {
+          "X-API-Key": "your-api-key"
+      }
+      ```
+    </ParamField>
+
+    <ParamField body="sucess" type="function">
+      Callback invoked when the XHR completes with a 2xx status code and the
+      response body parses as valid JSON. Receives the parsed response and the
+      `search` instance.
+
+      <Warning>
+        This property is spelled `sucess` (without the second `c`) in the source
+        code. Using `success` (the standard English spelling) will have no
+        effect.
+      </Warning>
+
+      ```javascript
+      sucess: function(response, instance) {
+          console.log("Loaded", response.data.length, "results");
+      }
+      ```
+    </ParamField>
+
+    <ParamField body="error" type="function">
+      Callback invoked when the XHR fails (network error, non-2xx status, or
+      JSON parse failure). Receives an error message string.
+
+      ```javascript
+      error: function(message) {
+          console.error("Search request failed:", message);
+      }
+      ```
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="renderizarItem" type="function">
+  Custom renderer called once per result item. Receives the item object and must
+  return an HTML string. When omitted, the default implementation joins all
+  object values with ` - `.
+
+  ```javascript
+  renderizarItem: function(element) {
+      return `
+          <div class="img-head">
+              <img src="https://flagsapi.com/${element.country}/flat/64.png">
+          </div>
+          <div class="info-item">
+              <h5>${element.name}</h5>
+              <p>${element.descripcion}</p>
+          </div>
+      `;
+  }
+  ```
+
+  Custom config properties merged onto the instance via `Object.assign` are
+  accessible as `this.propertyName` inside this function.
+</ParamField>
+
+## AJAX request format
+
+For `POST`, `PUT`, and `PATCH` requests the class serializes `data.body` as
+`application/x-www-form-urlencoded`:
+
+```javascript
+// Given this config:
+data: {
+    url: "./api/search.php",
+    method: "POST",
+    body: { page: 1, searchTerm: "" }
+}
+
+// The request body sent over the wire looks like:
+// page=1&searchTerm=&itemsPerPage=10
+```
+
+For `GET` requests, the same parameters are appended to the URL as a query
+string:
+
+```javascript
+// GET ./api/search.php?page=1&searchTerm=&itemsPerPage=10
+```
+
+## Expected server response
+
+In AJAX mode the class expects every response to be a JSON object with these
+fields:
+
+```javascript
+{
+    "data": [],        // Array of result objects for the current page
+    "page": 1,         // Current page number
+    "countPage": 10    // Total number of pages
+}
+```
+
+## Full configuration example
+
+```javascript
+const buscador = new search({
+    element: ".app-search",
+    procesServer: true,
+    itemsPerPage: 10,
+    data: {
+        url: "./api/search.php",
+        method: "POST",
+        body: {
+            page: 1,
+            searchTerm: ""
+        },
+        headers: {
+            "X-API-Key": "your-api-key"
+        },
+        sucess: function(response, instance) {
+            console.log("Results loaded:", response.data.length);
+        },
+        error: function(message) {
+            console.error("Request failed:", message);
+        }
+    },
+    renderizarItem: function(element) {
+        return `
+            <div class="item-card">
+                <h3>${element.title}</h3>
+                <p>${element.description}</p>
+            </div>
+        `;
+    }
+});
+```

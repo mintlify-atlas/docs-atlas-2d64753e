@@ -1,0 +1,186 @@
+---
+title: Server response format
+description: The JSON structure your server endpoint must return when using AJAX mode.
+---
+
+When `procesServer: true` is set, the class calls `ajax()` on every search or page change. Your endpoint must return a specific JSON shape so the class can render results and calculate pagination correctly.
+
+## Required response shape
+
+Your endpoint must return a JSON object with these three fields:
+
+```json
+{
+  "data": [],
+  "page": 1,
+  "countPage": 150
+}
+```
+
+<ResponseField name="data" type="object[]" required>
+  Array of result items for the current page. Each item can have any shape — all
+  properties are passed directly to `renderizarItem` for rendering. The class
+  does not inspect or transform the items.
+</ResponseField>
+
+<ResponseField name="page" type="number" required>
+  The current page number, echoed back from the request. The class reads this
+  value to keep its internal pagination state in sync with the server.
+</ResponseField>
+
+<ResponseField name="countPage" type="number" required>
+  The **total number of matching items** across all pages — not the number of
+  pages. The class uses this value together with `itemsPerPage` to compute the
+  total page count.
+</ResponseField>
+
+<Warning>
+  `countPage` is the **total item count**, not the page count. The class computes
+  `totalPages = Math.ceil(countPage / itemsPerPage)`. For example, if you have
+  150 matching rows and `itemsPerPage` is 10, set `countPage` to `150` — the
+  class will calculate 15 pages automatically. Returning the number of pages
+  instead will produce incorrect pagination.
+</Warning>
+
+## Request parameters sent by the class
+
+On each request the class writes the following parameters into `data.body` before sending. For `POST`, `PUT`, and `PATCH` requests they are sent as a `application/x-www-form-urlencoded` body. For `GET` and `DELETE` requests they are appended to the URL as query string parameters.
+
+<ParamField body="page" type="number" required>
+  The current page number (integer, starting at `1`). Updated automatically as
+  the user navigates between pages.
+</ParamField>
+
+<ParamField body="searchTerm" type="string" required>
+  The user's current search input, trimmed and lower-cased. Empty string when
+  no search term has been entered.
+</ParamField>
+
+<ParamField body="itemsPerPage" type="number" required>
+  The number of items per page, always taken from `config.itemsPerPage`. The
+  class overwrites any value you set in `config.data.body.itemsPerPage` before
+  every request, so your server always receives the authoritative value.
+</ParamField>
+
+Any additional properties you include in `config.data.body` are also sent with every request and remain unchanged between requests unless your code updates them.
+
+## PHP implementation example
+
+The following example shows a working endpoint that handles pagination, filtering, and the required JSON response shape.
+
+```php
+<?php
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+
+include "./modelo.php";
+header("Content-Type: application/json; charset=UTF-8");
+
+$busqueda = $_POST['searchTerm'];
+$page = $_POST['page'];
+
+$start = ($page - 1) * 10;
+
+$busqueda = (!empty($busqueda) ? "WHERE name LIKE '%{$busqueda}%'" : "");
+$consulta = mysqli_query($conexion, "SELECT id, name, country_code, country_id FROM paisesciudades {$busqueda} ORDER BY id ASC LIMIT $start, {$_POST['itemsPerPage']}");
+$consultaRow = mysqli_query($conexion, "SELECT COUNT(*) AS totalCount FROM paisesciudades {$busqueda} ORDER BY id ASC");
+$consultaRow = mysqli_fetch_assoc($consultaRow);
+
+$newDatos = array();
+while ($filas = mysqli_fetch_assoc($consulta)) {
+    $consultaPais = mysqli_query($conexion, "SELECT name FROM paises WHERE id = '{$filas['country_id']}' LIMIT 1");
+    $filas['pais'] = mysqli_fetch_assoc($consultaPais)['name'];
+    $newDatos[] = $filas;
+}
+
+$response = [
+    "data"      => $newDatos,
+    "page"      => (int) $page,
+    "countPage" => $consultaRow['totalCount']
+];
+
+mysqli_close($conexion);
+
+echo json_encode($response);
+```
+
+The example does the following:
+
+- Calculates the SQL `OFFSET` as `($page - 1) * itemsPerPage`.
+- Applies an optional `WHERE name LIKE '%{searchTerm}%'` clause when a search term is present.
+- Runs a separate `COUNT(*)` query against the same filtered result set to produce `countPage`.
+- Joins each result row with a second table to add the `pais` (country name) field before returning it in `data`.
+
+<Note>
+  The PHP example above interpolates user input directly into SQL strings. This
+  makes it vulnerable to SQL injection. In production code, use prepared
+  statements with bound parameters instead of raw string interpolation.
+</Note>
+
+## What each item in `data` should contain
+
+Items in the `data` array can have any shape. The class passes each item directly to `renderizarItem(element)` without inspecting or modifying it, so you control the data structure entirely.
+
+The PHP example above returns items with these fields:
+
+```json
+{
+  "id": "1",
+  "name": "Buenos Aires",
+  "country_code": "AR",
+  "country_id": "11",
+  "pais": "Argentina"
+}
+```
+
+Your `renderizarItem` function receives this object and returns the HTML string to display for that item:
+
+```javascript
+const buscador = new search({
+  element: ".app-search",
+  procesServer: true,
+  itemsPerPage: 10,
+  data: {
+    url: "./api/search.php",
+    method: "POST",
+    body: { page: 1, searchTerm: "" }
+  },
+  renderizarItem: function (element) {
+    return `
+      <div class="city-card">
+        <h5>${element.name}</h5>
+        <p>${element.pais} (${element.country_code})</p>
+      </div>
+    `;
+  }
+});
+```
+
+## Error handling
+
+The `ajax()` method returns a `Promise`. It rejects in two cases:
+
+- **Non-2xx HTTP status** — the Promise rejects with `Error('Error HTTP: ${status}')` where `${status}` is the HTTP status code returned by the server (e.g. `Error('Error HTTP: 500')`).
+- **Invalid JSON response** — if the response body cannot be parsed as JSON, the Promise rejects with `Error('Error al parsear la respuesta JSON')`.
+
+You can handle these errors using the optional `error` callback in `config.data`:
+
+```javascript
+const buscador = new search({
+  element: ".app-search",
+  procesServer: true,
+  data: {
+    url: "./api/search.php",
+    method: "POST",
+    body: { page: 1, searchTerm: "" },
+    error: function (message) {
+      console.error("Search request failed:", message);
+    }
+  }
+});
+```
+
+<Tip>
+  Always return a valid JSON object from your endpoint, even when there are no
+  results. An empty result set should return `{ "data": [], "page": 1, "countPage": 0 }`
+  rather than an empty body or an HTML error page.
+</Tip>

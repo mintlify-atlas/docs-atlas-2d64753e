@@ -1,0 +1,89 @@
+---
+title: extraerItemsData()
+description: Reads existing DOM elements and converts their data-* attributes into a JavaScript array.
+---
+
+`extraerItemsData()` enables **DOM indexing mode**: instead of supplying a JavaScript array, you mark up your existing HTML with `data-*` attributes and the library reads them automatically. This method is called by `init()` when `procesServer` is falsy and no `data` option was provided in the config.
+
+## Parameters
+
+None.
+
+## Return value
+
+<ResponseField name="return" type="Array<Object>">
+  An array of plain objects, one per `.items` element found in `this.body`. Each object's properties are derived from the element's `dataset` — the browser converts `data-*` attribute names to camelCase keys automatically.
+</ResponseField>
+
+## Method logic
+
+```javascript
+extraerItemsData() {
+    const items = this.body.querySelectorAll(".items");
+    return Object.keys(items).map((key) => {
+        return { ...items[key].dataset };
+    });
+}
+```
+
+`querySelectorAll(".items")` returns a `NodeList`. `Object.keys()` produces the numeric index strings (`"0"`, `"1"`, …) which are used to iterate over the list. The spread `{ ...items[key].dataset }` copies all `data-*` values into a plain object.
+
+## Attribute-to-property mapping
+
+The browser's `HTMLElement.dataset` API automatically converts hyphenated `data-*` attribute names to camelCase property names. For `buscadorDinamico`, the conventional attributes are:
+
+| HTML attribute | JS property |
+|---|---|
+| `data-name` | `name` |
+| `data-country` | `country` |
+| `data-descripcion` | `descripcion` |
+
+Any `data-*` attribute you add is included — you are not limited to these three.
+
+## HTML input
+
+```html
+<div class="app-search2">
+  <main class="items-search">
+    <section class="items"
+             data-name="France"
+             data-country="FR"
+             data-descripcion="Western Europe">
+    </section>
+    <section class="items"
+             data-name="Germany"
+             data-country="DE"
+             data-descripcion="Central Europe">
+    </section>
+  </main>
+</div>
+```
+
+## Resulting JS array
+
+```javascript
+[
+  { name: "France",  country: "FR", descripcion: "Western Europe" },
+  { name: "Germany", country: "DE", descripcion: "Central Europe" }
+]
+```
+
+## When it is called
+
+`extraerItemsData()` is called automatically inside `init()` when both conditions are true:
+
+1. `procesServer` is falsy (local data mode).
+2. No `data` array was provided in the constructor config.
+
+```javascript
+// In init():
+if (!this.#data || this.#data.length === 0) {
+    this.actualizarDatos(this.data ?? this.extraerItemsData());
+    //                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    //                   called when this.data is undefined
+}
+```
+
+<Note>
+  Because `extraerItemsData()` reads `.items` elements from `this.body` (the `.items-search` container), those elements must exist in the DOM before the `search` constructor runs. If the container is empty, the method returns an empty array and `initializeWithData()` will throw.
+</Note>

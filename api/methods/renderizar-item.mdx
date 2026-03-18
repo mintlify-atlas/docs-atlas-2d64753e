@@ -1,0 +1,68 @@
+---
+title: renderizarItem(element)
+description: Returns an HTML string for a single search result item.
+---
+
+`renderizarItem()` converts a single data object into an HTML string. `imprimirDatos()` calls it for every item and injects the result into a `<section class="items">` wrapper via `innerHTML`.
+
+## Parameters
+
+<ParamField path="element" type="Object" required>
+  A single item object from the data array. The shape of this object depends on your data source — it may come from the `data` config array, the server response, or `extraerItemsData()`.
+</ParamField>
+
+## Return value
+
+<ResponseField name="return" type="string">
+  An HTML string injected as the `innerHTML` of a `<section class="items">` element.
+</ResponseField>
+
+## Default implementation
+
+The built-in implementation joins all object values with `" - "`:
+
+```javascript
+renderizarItem(element) {
+    let itemNew = Object.values(element).join(" - ");
+    return itemNew;
+}
+```
+
+For an object `{ name: "France", descripcion: "Western Europe", country: "FR" }`, this produces:
+
+```
+France - Western Europe - FR
+```
+
+## Overriding the renderer
+
+<Note>
+  `renderizarItem` is both a class method and a constructor config option. Passing a `renderizarItem` function in the config object replaces the default method via `Object.assign(this, config)` in the constructor. You do not need to subclass `search` to customize rendering.
+</Note>
+
+Provide a `renderizarItem` function in your config to take full control of item markup:
+
+```javascript
+let prueba2 = new search({
+    element: ".app-search2",
+    renderizarItem: function(element) {
+        if (element) {
+            return `
+                <div class="img-head">
+                    <img src="https://flagsapi.com/${element.country}/flat/64.png">
+                </div>
+                <div class="info-item">
+                    <h5>${element.name}</h5>
+                    <p>${element.descripcion}</p>
+                </div>
+            `;
+        }
+    }
+});
+```
+
+The custom function receives the same `element` object and must return an HTML string. The returned markup is placed inside the `<section class="items">` wrapper that `imprimirDatos()` creates.
+
+## Returns
+
+A `string` of HTML. If the function returns `undefined` (for example, if `element` is falsy in the custom override above), the `<section>` will have empty `innerHTML`.

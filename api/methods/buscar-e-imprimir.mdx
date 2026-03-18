@@ -1,0 +1,97 @@
+---
+title: buscarEImprimir(searchTerm)
+description: Performs the search and renders results, using cache when available.
+---
+
+`buscarEImprimir()` is the central dispatch method. Every time a search needs to run — on initialization, on user input, or on pagination — this method is called. It checks the cache first, and only fetches or filters data when a cache miss occurs.
+
+## Parameters
+
+<ParamField path="searchTerm" type="string" required>
+  The search term to match against. The input event handler trims whitespace and converts the value to lowercase before passing it here, so this string is always lowercase and stripped of leading/trailing spaces.
+</ParamField>
+
+## Decision tree
+
+```javascript
+buscarEImprimir(searchTerm) {
+    const cachedData = this.#getCacheData(searchTerm, this.#pagination.currentPage);
+
+    if (cachedData) {
+        if (this.procesServer) {
+            this.actualizarDatos(cachedData.data);
+            this.imprimirDatos(cachedData.data);
+            this.renderPagination(this.#pagination.totalPages);
+            return;
+        } else {
+            this.calcularPaginacion(cachedData.data);
+
+            const paginatedData = cachedData.data.slice(
+                this.#pagination.startIndex,
+                this.#pagination.endIndex
+            );
+
+            this.imprimirDatos(paginatedData);
+            this.renderPagination(Math.ceil(cachedData.filteredCount / this.itemsPerPage));
+            return;
+        }
+    }
+
+    if (this.procesServer) {
+        this.data.body.searchTerm = searchTerm;
+        this.data.body.page = this.#pagination.currentPage;
+
+        this.ajax(this.data).then(response => {
+            this.actualizarDatos(response.data);
+            this.calcularPaginacion(response.countPage);
+            this.#setCacheData(searchTerm, response.data, this.#pagination.currentPage);
+            this.imprimirDatos(response.data);
+            this.renderPagination(this.#pagination.totalPages);
+        });
+    } else {
+        const filteredData = this.filtrarDatos(this.#data, searchTerm);
+        this.calcularPaginacion(filteredData);
+        this.#setCacheData(searchTerm, filteredData);
+
+        const paginatedData = filteredData.slice(
+            this.#pagination.startIndex,
+            this.#pagination.endIndex
+        );
+
+        this.imprimirDatos(paginatedData);
+        this.renderPagination(this.#pagination.totalPages);
+    }
+}
+```
+
+### Step 1 — Cache lookup
+
+`#getCacheData(searchTerm, currentPage)` is called first. The cache key encodes the term, page number, and whether the instance is in server or local mode. If a valid (non-expired) entry is found, execution takes the cache path and returns early.
+
+### Step 2 — Cache hit: server mode
+
+The cached page of records is passed directly to `actualizarDatos()` and `imprimirDatos()`. Pagination is re-rendered using the already-computed `totalPages` stored in `#pagination`.
+
+### Step 3 — Cache hit: local mode
+
+The cached array is the full filtered result set (not a page slice). `calcularPaginacion()` recalculates `startIndex` and `endIndex` for the current page, then the result is sliced before being passed to `imprimirDatos()`.
+
+### Step 4 — Cache miss: server mode
+
+The search term and current page number are written into `data.body`, then `ajax()` sends the request. On success:
+
+1. `actualizarDatos(response.data)` stores the new page.
+2. `calcularPaginacion(response.countPage)` recomputes pagination from the server-supplied total.
+3. The page of results is cached with `#setCacheData`.
+4. `imprimirDatos()` and `renderPagination()` render the view.
+
+### Step 5 — Cache miss: local mode
+
+1. `filtrarDatos(this.#data, searchTerm)` scans the full local dataset.
+2. `calcularPaginacion(filteredData)` computes pagination from the filtered array length.
+3. The full filtered array is cached (not just the page slice) so future page navigations can slice from it.
+4. The current page slice is passed to `imprimirDatos()` and `renderPagination()` renders controls.
+
+## Returns
+
+`buscarEImprimir()` has no return value.

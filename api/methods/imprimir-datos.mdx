@@ -1,0 +1,51 @@
+---
+title: imprimirDatos(data)
+description: Clears the results body and renders a set of data items.
+---
+
+`imprimirDatos()` is responsible for writing search results to the DOM. It always receives the already-paginated slice of data, not the full filtered set.
+
+## Parameters
+
+<ParamField path="data" type="Array<Object>" required>
+  The paginated subset of items to render. This array has already been sliced to `itemsPerPage` length by `buscarEImprimir()` before being passed here.
+</ParamField>
+
+## Method logic
+
+```javascript
+imprimirDatos(data) {
+    this.body.innerHTML = "";
+    data.forEach((element) => {
+        let item = document.createElement("section");
+        item.classList.add("items");
+        item.innerHTML = this.renderizarItem(element);
+        this.body.appendChild(item);
+    });
+}
+```
+
+## Rendering steps
+
+1. **Clear the body.** `this.body.innerHTML = ""` wipes all existing result elements. This prevents results from accumulating across successive searches.
+2. **Create a wrapper per item.** For each element in `data`, a `<section class="items">` element is created.
+3. **Inject item HTML.** `this.renderizarItem(element)` returns an HTML string. That string is set as the `innerHTML` of the section.
+4. **Append to body.** The section is appended to `this.body` (the `.items-search` container).
+
+## Rendered output structure
+
+```html
+<main class="items-search">
+  <section class="items"><!-- renderizarItem output --></section>
+  <section class="items"><!-- renderizarItem output --></section>
+  <!-- one <section> per item in the data slice -->
+</main>
+```
+
+<Note>
+  `renderizarItem` output is injected via `innerHTML`, so it is treated as raw HTML. If you override `renderizarItem` with a custom function, ensure the output does not include unsanitized user-supplied content to avoid XSS vulnerabilities.
+</Note>
+
+## Returns
+
+`imprimirDatos()` has no return value.

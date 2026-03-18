@@ -1,0 +1,104 @@
+---
+title: Caching
+description: Learn how the built-in cache system optimizes repeated searches.
+---
+
+buscadorDinamico includes an in-memory cache that avoids redundant filtering work and network requests. Once a search result has been computed or fetched, navigating to the same term and page number again is instant.
+
+## How the cache is stored
+
+Each instance of `search` holds a private `Map` field:
+
+```javascript
+#cache = new Map();
+#cacheTimeout = 5 * 60 * 1000; // 5 minutes in milliseconds
+```
+
+The `Map` maps string keys to entry objects. Because it's a private class field (`#cache`), it belongs exclusively to that instance.
+
+<Tip>
+The cache is per-instance. If you create two separate `new search(...)` components on the same page, each has its own independent cache. Clearing or filling one has no effect on the other.
+</Tip>
+
+## Cache key structure
+
+Keys are built by `#getCacheKey`:
+
+```javascript
+#getCacheKey(searchTerm, page = 1, isServer = false) {
+    return `${isServer ? 'server' : 'local'}-${searchTerm}-${page}`;
+}
+```
+
+Examples:
+
+| Scenario | Cache key |
+|---|---|
+| Local mode, empty search, page 1 | `local--1` |
+| Local mode, search `"brazil"`, page 2 | `local-brazil-2` |
+| AJAX mode, search `"peru"`, page 1 | `server-peru-1` |
+
+Each unique combination of mode, search term, and page number gets its own cache entry.
+
+## Cache entry shape
+
+Each entry stored by `#setCacheData` has three fields:
+
+```javascript
+this.#cache.set(cacheKey, {
+    data:          data,          // the array of items for this result
+    timestamp:     Date.now(),    // epoch ms when the entry was created
+    filteredCount: data.length    // total number of matching items
+});
+```
+
+`filteredCount` is used by `buscarEImprimir` to recalculate the total page count when serving a cached response for local mode, without re-filtering the full dataset.
+
+## Expiration
+
+`#getCacheData` validates the timestamp on every read:
+
+```javascript
+#getCacheData(searchTerm, page = 1) {
+    const cacheKey  = this.#getCacheKey(searchTerm, page, this.procesServer);
+    const cachedData = this.#cache.get(cacheKey);
+
+    if (cachedData && (Date.now() - cachedData.timestamp) < this.#cacheTimeout) {
+        return cachedData;
+    }
+
+    return null;
+}
+```
+
+If the entry is older than 5 minutes, `null` is returned and the caller re-filters or re-fetches as usual. The stale entry remains in the `Map` but is never served; it will be replaced the next time that key is written.
+
+## Where cache is checked and set
+
+`buscarEImprimir` is the single entry point for all search operations. It checks the cache first, before any filtering or network request:
+
+```javascript
+buscarEImprimir(searchTerm) {
+    const cachedData = this.#getCacheData(searchTerm, this.#pagination.currentPage);
+
+    if (cachedData) {
+        // Serve from cache — no filtering or AJAX call needed
+        // ...
+        return;
+    }
+
+    // Cache miss: filter locally or fetch from server
+    // ...
+    this.#setCacheData(searchTerm, /* result */, this.#pagination.currentPage);
+}
+```
+
+Cache is written:
+- **Local mode** — after `filtrarDatos` returns the filtered array
+- **AJAX mode** — after the XHR response is parsed and `response.data` is available
+
+This means the very first request for any term/page combination always goes through the full code path. Every subsequent request for the same combination within 5 minutes is served instantly from the `Map`.
+
+<Note>
+The cache is not persisted anywhere. It lives in the JavaScript heap for the lifetime of the page. A full page reload creates a fresh `search` instance with an empty `Map`, so all previous cache entries are lost.
+</Note>

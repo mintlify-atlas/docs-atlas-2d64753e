@@ -1,0 +1,104 @@
+---
+title: Custom rendering
+description: Override the default item template with your own HTML using renderizarItem.
+---
+
+By default, buscadorDinamico renders each item by joining all of its values with `" - "`. For most real-world UIs you'll want richer markup — a card with a heading, an image, a badge, etc. The `renderizarItem` option lets you supply your own template function.
+
+## Default rendering
+
+When no `renderizarItem` function is provided, `imprimirDatos` calls the built-in implementation:
+
+```javascript
+renderizarItem(element) {
+    let itemNew = Object.values(element).join(" - ");
+    return itemNew;
+}
+```
+
+For an object `{ name: "Venezuela", descripcion: "El pais mas rico en petroleo." }` this produces the string `"Venezuela - El pais mas rico en petroleo."`.
+
+## Supplying a custom renderer
+
+Pass a function as `renderizarItem` in your constructor config. The function receives the item object and must return an HTML string:
+
+```javascript
+// Signature
+renderizarItem: function(element) {
+    return '<html string>';
+}
+```
+
+The returned string is set as the `innerHTML` of a `<section class="items">` wrapper that the library creates for each item. You only need to return the **inner** markup — the `<section>` wrapper is added automatically.
+
+<Note>
+The function must return a string. If it returns `undefined` or `null`, the `<section>` will be empty. Template literals are the most convenient way to build multi-line HTML strings.
+</Note>
+
+## Generic example
+
+```javascript
+const buscador = new search({
+  element: ".app-search",
+  itemsPerPage: 10,
+  data: [
+    { name: "Item 1", descripcion: "Descripción 1" },
+    { name: "Item 2", descripcion: "Descripción 2" },
+  ],
+  renderizarItem: function (element) {
+    return `
+      <div class="item-personalizado">
+        <h3>${element.name}</h3>
+        <p>${element.descripcion}</p>
+      </div>
+    `;
+  }
+});
+```
+
+## Flag image example
+
+The following renderer is used in the source demo (`app.js`). It reads the `country` ISO code from the item and loads a flag image from the `flagsapi.com` CDN:
+
+```javascript
+let prueba2 = new search({
+  element: ".app-search2",
+  renderizarItem: function (element) {
+    if (element) {
+      return `
+        <div class="img-head">
+          <img src="https://flagsapi.com/${element.country}/flat/64.png">
+        </div>
+        <div class="info-item">
+          <h5>${element.name}</h5>
+          <p>${element.descripcion}</p>
+        </div>
+      `;
+    }
+  }
+});
+```
+
+This renderer uses three fields from the item object: `element.country` (the two-letter ISO 3166-1 alpha-2 code), `element.name`, and `element.descripcion`. All three come from the `data-*` attributes on the HTML items — see [DOM indexing mode](/guides/dom-indexing) for how those attributes are read.
+
+<Tip>
+Use template literals (backtick strings) for multi-line HTML. They preserve whitespace and let you interpolate values with `${...}` without string concatenation.
+</Tip>
+
+## How the wrapper is created
+
+`imprimirDatos` creates each wrapper element and injects your markup:
+
+```javascript
+imprimirDatos(data) {
+    this.body.innerHTML = "";
+    data.forEach((element) => {
+        let item = document.createElement("section");
+        item.classList.add("items");
+        item.innerHTML = this.renderizarItem(element);
+        this.body.appendChild(item);
+    });
+}
+```
+
+Each call to your `renderizarItem` function produces the `innerHTML` of one `<section class="items">` node. The container is cleared (`innerHTML = ""`) before each render cycle, so stale items are never left behind.

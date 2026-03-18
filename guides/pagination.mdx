@@ -1,0 +1,127 @@
+---
+title: Pagination
+description: Understand how buscadorDinamico calculates and renders page navigation.
+---
+
+buscadorDinamico includes a built-in pagination system that works for both local data and AJAX mode. You configure the page size once; everything else — calculating page boundaries, rendering navigation buttons, and wiring up click events — is handled automatically.
+
+## `itemsPerPage`
+
+Set `itemsPerPage` in the constructor to control how many results appear on each page. The default is `10`:
+
+```javascript
+new search({
+  element: ".app-search",
+  itemsPerPage: 5,   // show 5 results per page
+  data: [ /* ... */ ]
+});
+```
+
+In AJAX mode, the class automatically injects `itemsPerPage` into the request body before every network call, so your server always receives the correct page size.
+
+## Pagination state
+
+The library maintains a single internal state object for all pagination values:
+
+```javascript
+#pagination = {
+    totalPages:  0,
+    currentPage: 1,
+    startIndex:  0,
+    endIndex:    0
+};
+```
+
+## How `calcularPaginacion` works
+
+`calcularPaginacion` is called after every search operation (local filtering or AJAX response). It accepts either an array (local mode) or a plain count (AJAX mode) and updates the state object:
+
+```javascript
+calcularPaginacion(totalItems) {
+    const itemCount = typeof totalItems === 'object'
+        ? totalItems.length
+        : parseInt(totalItems);
+
+    this.#pagination.totalPages  = Math.ceil(itemCount / this.itemsPerPage);
+    this.#pagination.currentPage = this.#pagination.currentPage ?? 1;
+    this.#pagination.startIndex  = (this.#pagination.currentPage - 1) * this.itemsPerPage;
+    this.#pagination.endIndex    = this.#pagination.startIndex + this.itemsPerPage;
+
+    return this.#pagination;
+}
+```
+
+- In **local mode**, you pass the filtered array. `itemCount` becomes `array.length`.
+- In **AJAX mode**, you pass `response.countPage` (total matching rows). `itemCount` is parsed as an integer.
+
+## Slicing local results
+
+For local data, `buscarEImprimir` slices the filtered array using the computed indices:
+
+```javascript
+const filteredData = this.filtrarDatos(this.#data, searchTerm);
+this.calcularPaginacion(filteredData);
+
+const paginatedData = filteredData.slice(
+    this.#pagination.startIndex,
+    this.#pagination.endIndex
+);
+
+this.imprimirDatos(paginatedData);
+```
+
+Only the items for the current page are passed to `imprimirDatos`, so the DOM is never populated with the full result set.
+
+## How `renderPagination` works
+
+`renderPagination` receives the total page count and builds a `<ul>` of `<li>` buttons. Five logical positions are considered:
+
+```javascript
+let buttonsPaginations = {
+    start:   1,
+    prev:    this.#pagination.currentPage - 1,
+    current: this.#pagination.currentPage,
+    next:    this.#pagination.currentPage + 1,
+    end:     totalPages,
+};
+```
+
+Buttons are hidden based on the following rules:
+
+| Button | Hidden when |
+|---|---|
+| `prev` | current page is 1 (would be ≤ 1) |
+| `start` | start equals current (already on page 1) |
+| `end` | end equals current (already on last page) |
+| `next` | next would exceed `totalPages` |
+
+The `current` button is always shown and receives the `page-selected` CSS class. All other buttons are clickable; clicking one sets `currentPage` to the corresponding page number and calls `buscarEImprimir` with the current search term:
+
+```javascript
+pageLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    this.#pagination.currentPage = buttonsPaginations[key];
+    this.buscarEImprimir(this.inputSearch.value.trim().toLowerCase());
+});
+```
+
+## `itemsPerPage` in AJAX body
+
+In AJAX mode, `init()` writes `itemsPerPage` into the request body once:
+
+```javascript
+this.data.body.itemsPerPage = this.itemsPerPage;
+```
+
+Then before each request, `buscarEImprimir` updates `page` and `searchTerm`:
+
+```javascript
+this.data.body.searchTerm = searchTerm;
+this.data.body.page = this.#pagination.currentPage;
+```
+
+Your server receives `page`, `searchTerm`, and `itemsPerPage` on every call, making it straightforward to build a `LIMIT offset, count` query.
+
+<Note>
+The cache key includes the page number (`${isServer ? 'server' : 'local'}-${searchTerm}-${page}`), so each combination of search term and page is cached independently. Navigating back to a page you already visited skips any filtering or network request and reads from cache directly. See [Caching](/guides/caching) for details.
+</Note>

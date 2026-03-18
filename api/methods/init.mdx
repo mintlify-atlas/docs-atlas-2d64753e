@@ -1,0 +1,97 @@
+---
+title: init()
+description: Initializes the search component, configures DOM elements, and performs the initial data load.
+---
+
+<Note>
+  `init()` is called automatically inside the constructor. You rarely need to call it manually.
+</Note>
+
+`init()` is the entry point for the search component's setup sequence. It delegates DOM work to `configurarElementos()`, then branches based on whether the instance is configured for server-side or local data.
+
+## Method logic
+
+```javascript
+init() {
+    this.configurarElementos();
+
+    if (this.procesServer) {
+        this.data.body.itemsPerPage = this.itemsPerPage;
+
+        this.ajax(this.data).then(response => {
+            this.calcularPaginacion(response.countPage);
+            this.actualizarDatos(response.data);
+            this.initializeWithData();
+        });
+
+        return;
+    }
+
+    if (!this.#data || this.#data.length === 0) {
+        this.actualizarDatos(this.data ?? this.extraerItemsData());
+    }
+
+    this.initializeWithData();
+}
+```
+
+## Execution steps
+
+### 1. Configure DOM elements
+
+`configurarElementos()` is always called first. It finds or creates the header (`input-search`), body (`items-search`), footer (`index-search`), and pagination `<ul>` elements inside the parent container.
+
+### 2. Server mode (`procesServer: true`)
+
+When `procesServer` is `true`:
+
+1. `itemsPerPage` is injected into `data.body` so the server knows how many records to return per page.
+2. `ajax(this.data)` fires the initial request.
+3. On response, `calcularPaginacion(response.countPage)` sets up pagination from the server-supplied total count.
+4. `actualizarDatos(response.data)` stores the first page of records.
+5. `initializeWithData()` attaches the input event listener and renders the first view.
+
+```javascript
+// Server mode example config
+let instance = new search({
+    element: ".app-search",
+    procesServer: true,
+    data: {
+        url: "./src/php/responseAjax.php",
+        method: "POST",
+        body: {
+            page: 1,
+            searchTerm: ""
+        }
+    }
+});
+```
+
+### 3. Local / DOM mode (`procesServer` falsy)
+
+When `procesServer` is not set:
+
+1. If `#data` is empty or missing, `actualizarDatos()` is called with either:
+   - `this.data` — a JavaScript array passed directly in the config, or
+   - `this.extraerItemsData()` — data scraped from existing `data-*` attributes on `.items` elements in the DOM (used when no `data` option is provided).
+2. `initializeWithData()` is then called to finish setup.
+
+```javascript
+// Local array mode
+let instance = new search({
+    element: ".app-search3",
+    data: [
+        { name: "Alice", descripcion: "Frontend engineer" },
+        { name: "Bob",   descripcion: "Backend engineer" }
+    ]
+});
+
+// DOM indexing mode — no data option; extraerItemsData() is called
+let instance = new search({
+    element: ".app-search2"
+});
+```
+
+## Returns
+
+`init()` has no return value. In server mode it returns early after calling `ajax()` (the rest of the setup happens asynchronously inside the `.then()` callback).

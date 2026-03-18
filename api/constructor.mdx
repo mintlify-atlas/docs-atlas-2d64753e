@@ -1,0 +1,183 @@
+---
+title: "new search(config)"
+description: Create a new instance of the search class.
+---
+
+## Signature
+
+```javascript
+const instance = new search(config);
+```
+
+The constructor accepts a single `config` object and performs these steps in order:
+
+1. Sets `this.itemsPerPage` from `config.itemsPerPage`, defaulting to `10` if omitted.
+2. Calls `Object.assign(this, config)`, merging every config property onto the instance.
+3. Calls `document.querySelector(config.element)` to resolve the parent container and stores it as `this.cajaPadre`.
+4. Calls `this.init()` to build the DOM structure, load data, and wire up the search input.
+
+<Note>
+  Because every config key is merged onto `this` via `Object.assign`, any custom
+  property you pass (e.g. `myProp`) is accessible inside `renderizarItem` as
+  `this.myProp`.
+</Note>
+
+## Parameters
+
+<ParamField body="element" type="string" required>
+  CSS selector for the parent container element (e.g. `".app-search"`). The
+  constructor calls `document.querySelector(element)` to find this element in
+  the DOM. The selector must match exactly one element on the page.
+</ParamField>
+
+<ParamField body="itemsPerPage" type="number" default="10">
+  Maximum number of results to display per page. Controls pagination for both
+  local and AJAX modes. In AJAX mode, this value is always written into
+  `data.body.itemsPerPage` before each request, overriding any value you set
+  there manually.
+</ParamField>
+
+<ParamField body="procesServer" type="boolean" default="false">
+  Set to `true` to enable AJAX mode. When `true`, the class fetches data from
+  the endpoint defined in `data` instead of filtering a local array. The server
+  is responsible for filtering and pagination; the class sends `searchTerm`,
+  `page`, and `itemsPerPage` in every request.
+</ParamField>
+
+<ParamField body="data" type="Array | Object">
+  The data source for the search.
+
+  - **Local mode** (`procesServer: false`): pass a plain `Array` of objects.
+    Every value of every object is searched as a string. If `data` is omitted
+    entirely, the class reads existing `.items` elements from the DOM via
+    `extraerItemsData()`.
+  - **AJAX mode** (`procesServer: true`): pass a configuration object — see
+    [Configuration reference](/api/configuration) for the full AJAX shape.
+</ParamField>
+
+<ParamField body="renderizarItem" type="function">
+  A custom renderer called once per result item. Receives the item object as its
+  first argument and must return an HTML string. When omitted, the default
+  renderer joins all object values with ` - `.
+
+  ```javascript
+  renderizarItem: function(element) {
+      return `<h3>${element.name}</h3><p>${element.descripcion}</p>`;
+  }
+  ```
+
+  Because all config properties are merged onto `this`, you can access any
+  extra config key inside the function body via `this`:
+
+  ```javascript
+  const instance = new search({
+      element: ".app-search",
+      data: myData,
+      baseImageUrl: "https://example.com/images/",
+      renderizarItem: function(element) {
+          return `<img src="${this.baseImageUrl}${element.photo}">`;
+      }
+  });
+  ```
+</ParamField>
+
+## Examples
+
+<Tabs>
+  <Tab title="Local data">
+    Pass a JavaScript array directly. The class searches all object values on
+    every keystroke and handles pagination locally.
+
+    ```javascript
+    const data = [
+        { name: "Item 1", descripcion: "Descripción 1" },
+        { name: "Item 2", descripcion: "Descripción 2" }
+    ];
+
+    const buscador = new search({
+        element: ".app-search",
+        itemsPerPage: 10,
+        data: data,
+        renderizarItem: function(element) {
+            return `
+                <div class="item-card">
+                    <h3>${element.name}</h3>
+                    <p>${element.descripcion}</p>
+                </div>
+            `;
+        }
+    });
+    ```
+
+    The required HTML container:
+
+    ```html
+    <div class="app-search"></div>
+    ```
+  </Tab>
+
+  <Tab title="DOM indexing">
+    Omit `data` and the class reads `data-*` attributes from existing
+    `.items` elements already present in the container. This is useful when
+    the server renders the initial list and you want to add client-side
+    search without a separate data source.
+
+    ```html
+    <div class="app-search">
+        <div class="body">
+            <section class="items" data-name="Item 1" data-descripcion="Descripción 1">
+                Contenido del item
+            </section>
+            <section class="items" data-name="Item 2" data-descripcion="Descripción 2">
+                Contenido del item
+            </section>
+        </div>
+    </div>
+    ```
+
+    ```javascript
+    const buscador = new search({
+        element: ".app-search",
+        itemsPerPage: 10,
+        renderizarItem: function(element) {
+            return `
+                <div class="item-personalizado">
+                    <h3>${element.name}</h3>
+                    <p>${element.descripcion}</p>
+                </div>
+            `;
+        }
+    });
+    ```
+  </Tab>
+
+  <Tab title="AJAX">
+    Set `procesServer: true` and provide a `data` object with endpoint
+    details. The class sends `searchTerm`, `page`, and `itemsPerPage` with
+    every request and expects the server to return `{ data, page, countPage }`.
+
+    ```javascript
+    const buscador = new search({
+        element: ".app-search",
+        procesServer: true,
+        itemsPerPage: 10,
+        data: {
+            url: "./api/search.php",
+            method: "POST",
+            body: {
+                page: 1,
+                searchTerm: ""
+            }
+        },
+        renderizarItem: function(element) {
+            return `
+                <div class="item-card">
+                    <h3>${element.title}</h3>
+                    <p>${element.description}</p>
+                </div>
+            `;
+        }
+    });
+    ```
+  </Tab>
+</Tabs>

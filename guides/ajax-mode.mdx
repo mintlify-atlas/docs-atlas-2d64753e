@@ -1,0 +1,174 @@
+---
+title: AJAX mode
+description: Fetch search results from a server endpoint with automatic pagination support.
+---
+
+AJAX mode delegates filtering and pagination to your server. The browser sends the current search term and page number to an endpoint; the server queries the database and returns a JSON response. Use this mode when your dataset is too large to load into memory, or when you need server-side access control on query results.
+
+## When to use AJAX mode
+
+- Your dataset has thousands of rows stored in a database
+- Filtering must happen in SQL for performance reasons
+- Results depend on the authenticated user (server enforces access control)
+- You want to avoid shipping the full dataset to the browser
+
+## Constructor setup
+
+Set `procesServer: true` and provide a `data` object (not an array) that describes the endpoint:
+
+```javascript
+new search({
+  element: ".app-search",
+  procesServer: true,
+  itemsPerPage: 10,
+  data: {
+    url: "./src/php/responseAjax.php",
+    method: "POST",
+    body: {
+      page: 1,
+      searchTerm: ""
+    }
+  }
+});
+```
+
+### `data` object properties
+
+| Property | Type | Description |
+|---|---|---|
+| `url` | string | Endpoint URL |
+| `method` | string | HTTP method: `POST`, `GET`, `PUT`, or `PATCH` |
+| `body` | object | Parameters sent with each request |
+| `headers` | object | Optional additional request headers |
+
+<Warning>
+`itemsPerPage` is always injected into `body` automatically by the class — you don't need to set it manually. On `init()`, the line `this.data.body.itemsPerPage = this.itemsPerPage` overwrites any value you may have placed in the body. Always configure the number of results per page through the top-level `itemsPerPage` option, not inside `body`.
+</Warning>
+
+Before each request, `buscarEImprimir()` also writes the current search term and page number into the body:
+
+```javascript
+this.data.body.searchTerm = searchTerm;
+this.data.body.page = this.#pagination.currentPage;
+```
+
+## HTTP method behaviour
+
+- **POST / PUT / PATCH** — body parameters are encoded as `application/x-www-form-urlencoded` and sent in the request body.
+- **GET / DELETE** — body parameters are appended to the URL as a query string (e.g. `?page=1&searchTerm=foo&itemsPerPage=10`).
+
+<Tabs>
+  <Tab title="Constructor setup">
+    ```javascript
+    // Full AJAX constructor from the source
+    let prueba = new search({
+      element: ".app-search",
+      procesServer: true,
+      data: {
+        url: "./src/php/responseAjax.php",
+        method: "POST",
+        body: {
+          page: 1,
+          searchTerm: ""
+        },
+        // Optional callbacks:
+        // sucess: function (resp, instance) { console.log(resp); },
+        // error:  function (error)           { console.log(error); }
+      },
+    });
+    ```
+  </Tab>
+
+  <Tab title="Server response">
+    Your endpoint must return a JSON object with the following shape:
+
+    ```json
+    {
+      "data": [],
+      "page": 1,
+      "countPage": 42
+    }
+    ```
+
+    | Field | Type | Description |
+    |---|---|---|
+    | `data` | array | The items to display on the current page |
+    | `page` | number | The current page number |
+    | `countPage` | number | The **total number of matching rows** (not total pages) — used to calculate pagination |
+
+    The class passes `countPage` directly to `calcularPaginacion()`, which divides it by `itemsPerPage` to determine the total number of pages.
+  </Tab>
+
+  <Tab title="PHP example">
+    The following PHP file from the source repository shows a complete server-side implementation:
+
+    ```php
+    <?php
+    error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+
+    include "./modelo.php";
+    header("Content-Type: application/json; charset=UTF-8");
+
+    $busqueda = $_POST['searchTerm'];
+    $page     = $_POST['page'];
+
+    $start = ($page - 1) * 10;
+
+    $busqueda = (!empty($busqueda)
+        ? "WHERE name LIKE '%{$busqueda}%'"
+        : "");
+
+    $consulta = mysqli_query(
+        $conexion,
+        "SELECT id, name, country_code, country_id
+         FROM paisesciudades {$busqueda}
+         ORDER BY id ASC
+         LIMIT $start, {$_POST['itemsPerPage']}"
+    );
+
+    $consultaRow = mysqli_query(
+        $conexion,
+        "SELECT COUNT(*) AS totalCount
+         FROM paisesciudades {$busqueda}
+         ORDER BY id ASC"
+    );
+    $consultaRow = mysqli_fetch_assoc($consultaRow);
+
+    $newDatos = array();
+    while ($filas = mysqli_fetch_assoc($consulta)) {
+        $consultaPais = mysqli_query(
+            $conexion,
+            "SELECT name FROM paises
+             WHERE id = '{$filas['country_id']}'
+             LIMIT 1"
+        );
+        $filas['pais'] = mysqli_fetch_assoc($consultaPais)['name'];
+        $newDatos[] = $filas;
+    }
+
+    $response = [
+        "data"      => $newDatos,
+        "page"      => (int) $page,
+        "countPage" => $consultaRow['totalCount']
+    ];
+
+    mysqli_close($conexion);
+
+    echo json_encode($response);
+    ```
+
+    The database connection is kept in a separate file (`modelo.php`):
+
+    ```php
+    <?php
+    $HOST     = "localhost";
+    $USER     = "root";
+    $PASS     = "";
+    $DB       = "dbmundo";
+    $conexion = mysqli_connect($HOST, $USER, $PASS, $DB)
+        or die("Erro ao conectar ao banco de dados");
+    ```
+
+    Note that the PHP side uses `$_POST['itemsPerPage']` directly in the `LIMIT` clause — the value is always the one injected by the class, never one you set manually in the body.
+  </Tab>
+</Tabs>

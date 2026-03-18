@@ -1,0 +1,66 @@
+---
+title: filtrarDatos(data, searchTerm)
+description: Filters a data array against a search term by checking all field values.
+---
+
+`filtrarDatos()` performs an in-memory search over a JavaScript array. It is only called in **local data mode** — when `procesServer` is falsy. In server mode the search term is sent to the server and the server handles filtering.
+
+## Parameters
+
+<ParamField path="data" type="Array<Object>" required>
+  The full `#data` array to filter. Each element is an object whose values are checked against the search term.
+</ParamField>
+
+<ParamField path="searchTerm" type="string" required>
+  The lowercase search term. This value is already lowercased by the input event handler before `buscarEImprimir` calls `filtrarDatos`, so no additional transformation is needed here.
+</ParamField>
+
+## Return value
+
+<ResponseField name="return" type="Array<Object>">
+  A new array containing only the elements from `data` where at least one field value matches `searchTerm`. The original array is not mutated.
+</ResponseField>
+
+## Method logic
+
+```javascript
+filtrarDatos(data, searchTerm) {
+    return data.filter((element) => {
+        const values = Object.values(element);
+        return values.some((value) =>
+            value.toString().toLowerCase().includes(searchTerm)
+        );
+    });
+}
+```
+
+## Key behaviors
+
+### All fields are checked
+
+`Object.values(element)` extracts every value in the object regardless of key name. You do not need to configure which fields are searchable — the filter checks all of them. For an object `{ name: "Alice", role: "Engineer" }`, both `"Alice"` and `"Engineer"` are checked.
+
+### Case-insensitive matching
+
+Each value is converted with `.toString().toLowerCase()` before `.includes()` is called. Because `searchTerm` is also already lowercase, the comparison is fully case-insensitive on both sides.
+
+### Substring matching
+
+`.includes(searchTerm)` matches anywhere within the value string — not only at the start. Searching for `"eng"` would match `"Engineer"`, `"engineering"`, and `"Bengaluru"`.
+
+## Example
+
+```javascript
+const data = [
+    { name: "Alice",   descripcion: "Frontend engineer" },
+    { name: "Bob",     descripcion: "Backend engineer" },
+    { name: "Charlie", descripcion: "Data analyst" }
+];
+
+filtrarDatos(data, "engineer");
+// Returns:
+// [
+//   { name: "Alice", descripcion: "Frontend engineer" },
+//   { name: "Bob",   descripcion: "Backend engineer" }
+// ]
+```

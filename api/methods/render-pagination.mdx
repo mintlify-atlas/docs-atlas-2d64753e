@@ -1,0 +1,102 @@
+---
+title: renderPagination(totalPages)
+description: Generates pagination buttons in the footer based on current page state.
+---
+
+`renderPagination()` rebuilds the pagination `<ul>` from scratch on every render. It creates a focused set of navigation buttons — first, previous, current, next, and last — skipping any that would be redundant for the current position.
+
+## Parameters
+
+<ParamField path="totalPages" type="number" required>
+  The total number of pages. In local mode this is `Math.ceil(filteredCount / itemsPerPage)`. In server mode it is `#pagination.totalPages` as calculated from `response.countPage`.
+</ParamField>
+
+## Method logic
+
+```javascript
+renderPagination(totalPages) {
+    this.paginationContainer.innerHTML = "";
+
+    let buttonsPaginations = {
+        start:   1,
+        prev:    this.#pagination.currentPage - 1,
+        current: this.#pagination.currentPage,
+        next:    this.#pagination.currentPage + 1,
+        end:     totalPages,
+    };
+
+    for (const key in buttonsPaginations) {
+        if (Object.prototype.hasOwnProperty.call(buttonsPaginations, key)) {
+            if (key === "prev"    && buttonsPaginations[key] <= 1)          continue;
+            if (key === "start"   && buttonsPaginations[key] === buttonsPaginations.current) continue;
+            if (key === "end"     && buttonsPaginations[key] === buttonsPaginations.current) continue;
+            if (key === "next"    && buttonsPaginations[key] >= totalPages) continue;
+
+            const pageLink = document.createElement("li");
+
+            if (key === "current") pageLink.classList.add("page-selected");
+
+            pageLink.textContent = buttonsPaginations[key];
+
+            if (key !== "current") {
+                pageLink.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    this.#pagination.currentPage = buttonsPaginations[key];
+                    this.buscarEImprimir(this.inputSearch.value.trim().toLowerCase());
+                });
+            }
+
+            this.paginationContainer.appendChild(pageLink);
+        }
+    }
+}
+```
+
+## The `buttonsPaginations` object
+
+The method builds five candidate buttons before applying skip rules:
+
+| Key | Value | Purpose |
+|---|---|---|
+| `start` | `1` | Jump to the first page |
+| `prev` | `currentPage - 1` | Go back one page |
+| `current` | `currentPage` | The active page indicator |
+| `next` | `currentPage + 1` | Go forward one page |
+| `end` | `totalPages` | Jump to the last page |
+
+## Skip rules
+
+A button is skipped (not rendered) when it would be meaningless or duplicate another button:
+
+- **`prev`** is skipped when its value is `<= 1`. On page 1, going back would land on page 0.
+- **`start`** is skipped when it equals `current`. On page 1, `start` and `current` would both show `1`.
+- **`end`** is skipped when it equals `current`. On the last page, `end` and `current` would both show `totalPages`.
+- **`next`** is skipped when its value is `>= totalPages`. On the last page, going forward would exceed the page count.
+
+## The `current` button
+
+The current-page `<li>` receives the `page-selected` CSS class and has **no click listener**. Clicking it does nothing, signaling to the user that they are already on this page.
+
+## Rendered example — page 3 of 7
+
+With `currentPage = 3` and `totalPages = 7`:
+
+- `start = 1` → rendered (not equal to current)
+- `prev = 2` → rendered (> 1)
+- `current = 3` → rendered with `page-selected`
+- `next = 4` → rendered (< 7)
+- `end = 7` → rendered (not equal to current)
+
+```html
+<ul class="pagination">
+  <li>1</li>                          <!-- start -->
+  <li>2</li>                          <!-- prev -->
+  <li class="page-selected">3</li>    <!-- current -->
+  <li>4</li>                          <!-- next -->
+  <li>7</li>                          <!-- end -->
+</ul>
+```
+
+## Returns
+
+`renderPagination()` has no return value.

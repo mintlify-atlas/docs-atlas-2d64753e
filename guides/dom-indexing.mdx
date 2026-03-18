@@ -1,0 +1,119 @@
+---
+title: DOM indexing mode
+description: Let buscadorDinamico index existing HTML elements using their data-* attributes.
+---
+
+DOM indexing mode lets you use server-rendered HTML as the data source. Instead of supplying a JavaScript array, you mark up your items with `data-*` attributes and the library reads them directly from the DOM at initialisation time.
+
+## When to use DOM indexing
+
+- Your page is rendered by a server (PHP, Rails, Django, etc.) and the items already exist in the HTML response
+- You want search and pagination on top of static HTML without maintaining a separate JS data array
+- You have no AJAX endpoint and don't want to duplicate the data in JavaScript
+
+## Required HTML structure
+
+Each searchable item must be a `<section>` with the class `items` inside the `.items-search` container. Every piece of data you want to be searchable goes on a `data-*` attribute:
+
+```html
+<div class="app-search">
+  <main class="items-search">
+    <section class="items" data-country="VE" data-name="Venezuela"
+      data-descripcion="El pais mas rico en petroleo.">
+    </section>
+    <section class="items" data-country="CO" data-name="Colombia"
+      data-descripcion="Un pais con una gran riqueza cultural y una gran variedad de paisajes naturales.">
+    </section>
+    <section class="items" data-country="BR" data-name="Brazil"
+      data-descripcion="El pais mas grande de suramerica, con una gran diversidad cultural y natural.">
+    </section>
+  </main>
+</div>
+```
+
+<Tip>
+The browser's `dataset` API strips the `data-` prefix automatically. So `data-country="VE"` becomes `element.country`, `data-name="Venezuela"` becomes `element.name`, and so on. buscadorDinamico reads `element.dataset` and spreads the result into a plain object, so every attribute you add is searchable immediately.
+</Tip>
+
+## How `extraerItemsData` works
+
+When no `data` array is provided, `init()` calls `extraerItemsData()` to build the dataset from the DOM:
+
+```javascript
+extraerItemsData() {
+    const items = this.body.querySelectorAll(".items");
+    return Object.keys(items).map((key) => {
+        return { ...items[key].dataset };
+    });
+}
+```
+
+It queries all `.items` children inside the `.items-search` container, then maps each element's `dataset` object (a `DOMStringMap`) into a plain JavaScript object using the spread operator. The resulting array is identical in shape to what you'd pass manually via the `data` option.
+
+## Constructor
+
+Omit the `data` property entirely. The library detects the absence of `data` and falls back to `extraerItemsData()`:
+
+```javascript
+const buscadorHTML = new search({
+  element: ".app-search",
+  itemsPerPage: 10
+  // No data property — items are read from the DOM
+});
+```
+
+## Complete example
+
+The following example uses the countries list from the demo page. It adds a custom renderer so each item shows a flag image alongside the country name and description.
+
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Country search</title>
+</head>
+<body>
+
+  <div class="app-search app-search2">
+    <main class="items-search">
+      <section class="items" data-country="VE" data-name="Venezuela"
+        data-descripcion="El pais mas rico en petroleo."></section>
+      <section class="items" data-country="CO" data-name="Colombia"
+        data-descripcion="Un pais con una gran riqueza cultural y una gran variedad de paisajes naturales."></section>
+      <section class="items" data-country="BR" data-name="Brazil"
+        data-descripcion="El pais mas grande de suramerica, con una gran diversidad cultural y natural."></section>
+      <section class="items" data-country="AR" data-name="Argentina"
+        data-descripcion="Un pais con una gran pasion por el fubol y una gran riqueza cultural."></section>
+      <section class="items" data-country="CL" data-name="Chile"
+        data-descripcion="Un pais con una gran variedad de paisajes naturales."></section>
+      <section class="items" data-country="PE" data-name="Peru"
+        data-descripcion="Un pais con una gran riqueza cultural y una gran variedad de paisajes naturales."></section>
+    </main>
+  </div>
+
+  <script src="path/to/search.js"></script>
+  <script>
+    const buscador = new search({
+      element: ".app-search2",
+      itemsPerPage: 10,
+      renderizarItem: function (element) {
+        if (element) {
+          return `
+            <div class="img-head">
+              <img src="https://flagsapi.com/${element.country}/flat/64.png">
+            </div>
+            <div class="info-item">
+              <h5>${element.name}</h5>
+              <p>${element.descripcion}</p>
+            </div>
+          `;
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+```
+
+All three attributes — `country`, `name`, and `descripcion` — are searchable. Typing `"bra"` matches Brazil because `"Brazil"` contains that substring.
